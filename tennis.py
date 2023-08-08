@@ -1,25 +1,10 @@
 from Deck import Deck
 
-class Player:
-    def __init__(self, name):
-        # None of these value should ever be set by the player
-        self.name = name
-        self.forehand = None
-        self.backhand = None
-        self.forehand_bid_card = None
-        self.forehand_bid_value = None
-        self.backhand_bid_card = None
-        self.backhand_bid_value = None
-        self.forehand_wins = 0
-        self.backhand_wins = 0
-    
-    # still lots of functions to put in
 
-def main():
-    player1 = Player("Player 1")
-    player2 = Player("Player 2")
+    
+
+def PlayTennisRound(player1: TennisPlayer, player2: TennisPlayer, trump_suit):
     players = [player1, player2]
-    trump_suit = None
     
     deck = Deck() # create an empty deck
     deck.reset() # put 52 cards in and shuffle
@@ -41,20 +26,28 @@ def main():
         else:
             return rank
     
-    # a handy function to wrap-up bid info
-    def get_player_bid_info(player: Player):
+    # a handy function to wrap-up already revealed info
+    def get_player_revealed_info(player: Player):
         backhand_bid_card = player.backhand_bid_card
+        forehand_bid_card = player.forehand_bid_card
         backhand_bid_value = player.backhand_bid_value
-        backhand_bid = (backhand_bid_card, backhand_bid_value)
+        forehand_bid_value = player.forehand_bid_value
+        backhand_bid = {"card"=backhand_bid_card, "value"=backhand_bid_value}
+        forehand_bid = {"card"=forehand_bid_card, "value"=forehand_bid_value}
+        forehand_wins = player.forehand_wins
+        backhand_wins = player.backhand_wins
+        return (forehand_bid, backhand_bid, forehand_wins, backhand_wins)
     
     # make bids
     for player in players: # backhand bids
         card = player.make_backhand_bid() # get the bid card
+        player.backhand.play(card) # play the card
         player.backhand_bid_card = player.backhand.play(card) # set the bid card
         player.backhand_bid_value = get_bid_value(player.backhand_bid_card) # set the bid value
     for i in range(2) # forehand bids
-        opponent_backhand_bid = get_player_bid_info(players[1-i]) # get info about the opponent's bid
+        opponent_revealed_info = get_player_revealed_info(players[1-i]) # get info about the opponent's bid
         card = players[i].make_forehand_bid(opponent_backhand_bid) # get the bid card
+        player.forehand.play(card) # play the card
         player.forehand_bid_card = player.forehand.play(card) # set the bid card
         player.forehand_bid_value = get_bid_value(player.forehand_bid_card) # set the bid value
     
@@ -62,31 +55,50 @@ def main():
     for trick in range(12):
         trick_cards = Deck()
         
+        # play four cards
+        for i in range(4):
+            opponent_revealed_info = get_player_revealed_info(player[1-i])
+            
+            # play one card
+            card = player[i].play(trick_cards, opponent_revealed_info)
+            # check if this is a forehand or backhand play
+            if len(trick_cards)%2 == 0:
+                player.forehand.play(card)
+            else:
+                player.backhand.play(card)
+            trick_cards.add(card)
+    
+        # show the first play what was played on the last trick
+        players[0].show(trick_cards)
         
+        # determine the highest card
+        lead_suit = trick_cards.cards[0].suit
+        highest_rank = trick_cards.cards[0].numerical_rank()
+        highest_card = trick_cards.cards[0]
+        for card in trick_cards.cards[1:]:
+            valid_suit = card.suit == trump_suit or card.suit == lead_suit
+            if valid_suit and card.numerical_rank() >= highest_rank:
+                highest_rank = card.numerical_rank()
+                highest_card = card
         
-        player[0].play()
-        
-        for player in players:
-            player.
-            played_card = player.play_card("Forehand", trick_suit, trick_cards)
-            trick_suit = played_card.suit
-
-        for player in players:
-            played_card = player.play_card("Backhand", trick_suit, trick_cards)
-            trick_suit = played_card.suit
-
-        trick_cards.sort(key=lambda card: card.rank, reverse=True)
-        trick_winner = trick_cards[0].suit
-        print(f"{trick_winner} wins the trick.")
-        trick_suit = None
-        trick_cards = []
-
-    # Calculate errors and scores
+        # give one win depending on the highest card
+        if highest_card == trick_cards.cards[0]:
+            player[0].forehand_wins += 1
+        elif highest_card == trick_cards.cards[1]:
+            player[1].forehand_wins += 1
+        elif highest_card == trick_cards.cards[2]:
+            player[0].backhand += 1
+        elif highest_card == trick_cards.cards[3]:
+            player[1].backhand += 1
+    
+    # Calculate errors and return them
+    player_errors = []
     for player in players:
-        forehand_errors = abs(player.forehand_bid - len([card for card in trick_cards if card in player.forehand]))
-        backhand_errors = abs(player.backhand_bid - len([card for card in trick_cards if card in player.backhand]))
+        forehand_errors = abs(player.forehand_bid_value - player.forehand_wins)
+        backhand_errors = abs(player.backhand_bid_value - player.backhand_wins)
         total_errors = forehand_errors + backhand_errors
-        print(f"{player.name} has {total_errors} errors.")
+        player_errors.append(total_errors)
+    return errors
 
 if __name__ == "__main__":
-    main()
+    PlayTennisRound(Player("Player 1"), Player("Player 2"))

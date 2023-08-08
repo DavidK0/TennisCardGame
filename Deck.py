@@ -23,7 +23,7 @@ class Card:
         elif self.rank == 'J':
             return 11
         else:
-            return self.rank
+            return int(self.rank)
 
 class Deck:
     # creates an empty deck
@@ -65,4 +65,8 @@ class Deck:
     # adds the given card to bottom of the deck
     def add(self, card):
         self.cards.append(card)
+    
+    # returns the number of cards in the deck
+    def __len__(self):
+        return len(self.cards)
 
