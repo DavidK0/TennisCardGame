@@ -7,9 +7,8 @@
 #   forehand_wins: an int
 #   backhand_wins: an int
 class TennisPlayer:
-    def __init__(self, name):
+    def __init__(self):
         # None of these value should ever be set by the player
-        self.name = name
         self.forehand = None
         self.backhand = None
         self.forehand_bid_card = None
@@ -29,24 +28,28 @@ class TennisPlayer:
         
     # Returns a card
     # the current hand (fore or back) must be found implicitly
-    def play(self, trick_card, opponent_revealed_info):
-        if len(trick_card)%2 == 0: # return a forehand card
+    def play(self, trick_cards, opponent_revealed_info):
+        if len(trick_cards)>1: # return a forehand card
             pass
         else: # return a backhand card
             pass
         raise NotImplementedError("Subclasses must implement the play method")
+    
+    # this is optionally used by the leader to see the last card played in a trick
+    def show(self, trick_cards):
+        pass
 
 # This Tennis player always picks a random card
 import random
 class RandomTennisPlayer(TennisPlayer):
     def make_backhand_bid(self):
-        return random.choice(self.backhand)
+        return random.choice(self.backhand.cards)
     
     def make_forehand_bid(self, opponent_revealed_info):
-        return random.choice(self.forehand)
+        return random.choice(self.forehand.cards)
     
     def play(self, trick_card, opponent_revealed_info):
-        if len(trick_card)%2 == 0: # return a forehand card
-            return random.choice(self.backhand)
+        if len(trick_card)>1: # return a forehand card
+            return random.choice(self.forehand.cards)
         else: # return a backhand card
-            return random.choice(self.forehand)
+            return random.choice(self.backhand.cards)

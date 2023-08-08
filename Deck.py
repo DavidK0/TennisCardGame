@@ -38,17 +38,13 @@ class Deck:
         self.shuffle()
     
     # shuffle the deck
-    def shuffle(self, num):
+    def shuffle(self):
         random.shuffle(self.cards)
     
     # checks if the given string represents a card in the deck
     # returns the card if it is in the deck, and None otherwise
-    def has_card(self, card_str: str):
-        if card_str in [str(card) for card in self.cards]:
-            card = next(card_obj for card_obj in self.cards if str(card_obj) == card)
-        else:
-            card = None
-        return card
+    def has_card(self, card: Card):
+        return card in self.cards
     
     # returns the given number of card of the top of the deck
     def draw(self, num):
@@ -58,15 +54,22 @@ class Deck:
     
     # returns the given card, if it is in the deck
     def play(self, card: Card):
-        assert(self.has_card(str(card)))
+        if not isinstance(card,Card) or not self.has_card(card):
+            raise Exception(f"Card '{card}' not found in the deck")
         self.cards.remove(card)
         return card
     
-    # adds the given card to bottom of the deck
-    def add(self, card):
-        self.cards.append(card)
+    # adds the given card or card to bottom of the deck
+    def add(self, cards):
+        if isinstance(cards, Card):
+            self.cards.append(cards)
+        elif isinstance(cards, list):
+            self.cards.extend(cards)
     
     # returns the number of cards in the deck
     def __len__(self):
         return len(self.cards)
+    
+    def __str__(self):
+        return f"[{', '.join([str(card) for card in self.cards])}]"
 
