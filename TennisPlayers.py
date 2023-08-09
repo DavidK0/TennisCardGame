@@ -7,8 +7,9 @@
 #   forehand_wins: an int
 #   backhand_wins: an int
 class TennisPlayer:
-    def __init__(self):
+    def __init__(self, role):
         # None of these value should ever be set by the player
+        self.role = role
         self.forehand = None
         self.backhand = None
         self.forehand_bid_card = None
@@ -47,6 +48,24 @@ class RandomTennisPlayer(TennisPlayer):
     
     def make_forehand_bid(self, opponent_revealed_info):
         return random.choice(self.forehand.cards)
+    
+    def play(self, trick_card, opponent_revealed_info):
+        if len(trick_card)>1: # return a forehand card
+            return random.choice(self.forehand.cards)
+        else: # return a backhand card
+            return random.choice(self.backhand.cards)
+
+# This Tennis player makes a specific bid but otherwise plays randomly
+# The bid is the average win in a Random vs. Random faceoff
+class AverageBetRandomPlayer(TennisPlayer):
+    def make_backhand_bid(self):
+        return self.backhand.closest_rank_card(1)
+    
+    def make_forehand_bid(self, opponent_revealed_info):
+        if self.role == "leader":
+            return self.forehand.closest_rank_card(8)
+        else:
+            return self.forehand.closest_rank_card(1)
     
     def play(self, trick_card, opponent_revealed_info):
         if len(trick_card)>1: # return a forehand card

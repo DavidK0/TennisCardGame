@@ -2,9 +2,10 @@ from Deck import Deck
 from Deck import Card
 from TennisPlayers import TennisPlayer
 from TennisPlayers import RandomTennisPlayer
+from TennisPlayers import AverageBetRandomPlayer
 
-def PlayTennisRound(player1: TennisPlayer, player2: TennisPlayer, trump_suit, verbose=False):
-    players = [player1, player2]
+def PlayTennisRound(player1: type, player2: type, trump_suit, verbose=False):
+    players = [player1("leader"), player2("dealer")]
     
     deck = Deck() # create an empty deck
     deck.reset() # put 52 cards in and shuffle
@@ -108,17 +109,111 @@ def PlayTennisRound(player1: TennisPlayer, player2: TennisPlayer, trump_suit, ve
         print(f"P1 wins: {players[0].forehand_wins}, {players[0].backhand_wins}")
         print(f"P2 wins: {players[1].forehand_wins}, {players[1].backhand_wins}")
     
-    # Calculate errors and return them
-    player_errors = []
-    for player in players:
-        forehand_errors = abs(player.forehand_bid_value - player.forehand_wins)
-        backhand_errors = abs(player.backhand_bid_value - player.backhand_wins)
-        total_errors = forehand_errors + backhand_errors
-        player_errors.append(total_errors)
-    return player_errors
+    ## Prepare information to be returned ##
+    
+    # Get bids, wins, and errors
+    player_infos = []
+    for i in range(2):
+        player_bid_info = [players[i].forehand_bid_value, players[i].backhand_bid_value]
+        player_win_info = [players[i].forehand_wins, players[i].backhand_wins]
+        player_forehand_error = abs(players[i].forehand_bid_value - players[i].forehand_wins)
+        player_backhand_error = abs(players[i].backhand_bid_value - players[i].backhand_wins)
+        player_error_info = [player_forehand_error, player_backhand_error]
+        player_infos.append((player_bid_info, player_win_info, player_error_info))
+
+    # Find round winner
+    p1_total_error = player_infos[0][2][0] + player_infos[0][2][1]
+    p2_total_error = player_infos[1][2][0] + player_infos[1][2][1]
+    if p1_total_error < p2_total_error:
+        winner = 0
+    elif p1_total_error > p2_total_error:
+        winner = 1
+    else:
+        winner = -1
+
+    round_info = (player_infos, winner)
+    return round_info
+
+# play two rounds, alternating dealer, with the given trump suit
+def PlayTwoRounds(player1: type, player2: type, trump_suit):
+    # trick one
+    round1_info = PlayTennisRound(player1, player2, trump_suit=trump_suit, verbose=False)
+    round2_info = PlayTennisRound(player2, player1, trump_suit=trump_suit, verbose=False)
+    return round1_info, round2_info
+
+# takes two lists of number, each with length 2, and adds them element wise
+def add_number_pairs(number_pair1, number_pair2):
+    return [number_pair1[0] + number_pair2[0], number_pair1[1] + number_pair2[1]]
 
 if __name__ == "__main__":
-    p1 = RandomTennisPlayer()
-    p2 = RandomTennisPlayer()
-    errors = PlayTennisRound(p1, p2, trump_suit=None, verbose=True)
-    print(f"Errors: {errors}")
+    player1 = RandomTennisPlayer
+    player2 = AverageBetRandomPlayer
+
+    # the numer of pairs of rounds to play
+    num_round_pairs = 100000
+
+    # track stats
+    p1_bids = [0, 0]
+    p1_wins = [0, 0]
+    p1_errors = [0, 0]
+
+    p2_bids = [0, 0]
+    p2_wins = [0, 0]
+    p2_errors = [0, 0]
+
+    leader_bids = [0, 0]
+    leader_wins = [0, 0]
+    leader_errors = [0, 0]
+
+    dealer_bids = [0, 0]
+    dealer_wins = [0, 0]
+    dealer_errors = [0, 0]
+
+    #for trump_suit in [None]:
+    for round in range(num_round_pairs):
+        print(f"Playing rounds: {round/num_round_pairs:.1%}", end="\r")
+        trump_suit = None
+        round1_info, round2_info = PlayTwoRounds(player1, player2, trump_suit)
+
+        # track stats
+        rounds = [round1_info, round2_info]
+        #print(rounds[0])
+        for i in range(2):
+            p1_bids = add_number_pairs(p1_bids, rounds[i][0][i][0])
+            p1_wins = add_number_pairs(p1_wins, rounds[i][0][i][1])
+            p1_errors = add_number_pairs(p1_errors, rounds[i][0][i][2])
+
+            p2_bids = add_number_pairs(p2_bids, rounds[i][0][1-i][0])
+            p2_wins = add_number_pairs(p2_wins, rounds[i][0][1-i][1])
+            p2_errors = add_number_pairs(p2_errors, rounds[i][0][1-i][2])
+
+            leader_bids = add_number_pairs(leader_bids, rounds[i][0][0][0])
+            leader_wins = add_number_pairs(leader_wins, rounds[i][0][0][1])
+            leader_errors = add_number_pairs(leader_errors, rounds[i][0][0][2])
+            
+            dealer_bids = add_number_pairs(dealer_bids, rounds[i][0][1][0])
+            dealer_wins = add_number_pairs(dealer_wins, rounds[i][0][1][1])
+            dealer_errors = add_number_pairs(dealer_errors, rounds[i][0][1][2])
+
+    # print stats
+    def nice_format(num_pair):
+        return [f"{x / total_rounds:.2f}" for x in num_pair]
+
+    total_rounds = num_round_pairs * 2
+    print(f"average p1 bids: {nice_format(p1_bids)}")
+    print(f"average p1 wins: {nice_format(p1_wins)}")
+    print(f"average p1 errors: {nice_format(p1_errors)}")
+    print()
+    print(f"average p2 bids: {nice_format(p2_bids)}")
+    print(f"average p2 wins: {nice_format(p2_wins)}")
+    print(f"average p2 errors: {nice_format(p2_errors)}")
+    print()
+    print(f"average leader bids: {nice_format(leader_bids)}")
+    print(f"average leader wins: {nice_format(leader_wins)}")
+    print(f"average leader errors: {nice_format(leader_errors)}")
+    print()
+    print(f"average dealer bids: {nice_format(dealer_bids)}")
+    print(f"average dealer wins: {nice_format(dealer_wins)}")
+    print(f"average dealer errors: {nice_format(dealer_errors)}")
+    print()
+    print(f"average winner: {winner/total_rounds:.2f}")

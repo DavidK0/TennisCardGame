@@ -73,3 +73,14 @@ class Deck:
     def __str__(self):
         return f"[{', '.join([str(card) for card in self.cards])}]"
 
+    # returns the card that is closest to the given rank
+    def closest_rank_card(self, rank):
+        best_dist = 100 # some high value
+        best_card = None
+        for card in self.cards:
+            new_dist = abs(rank - card.numeric_rank())
+            if new_dist < best_dist:
+                best_dist = new_dist
+                best_card = card
+        return best_card
+
