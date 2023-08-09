@@ -147,7 +147,7 @@ def add_number_pairs(number_pair1, number_pair2):
 
 if __name__ == "__main__":
     player1 = RandomTennisPlayer
-    player2 = AverageBetRandomPlayer
+    player2 = RandomTennisPlayer
 
     # the numer of pairs of rounds to play
     num_round_pairs = 100000
@@ -215,5 +215,3 @@ if __name__ == "__main__":
     print(f"average dealer bids: {nice_format(dealer_bids)}")
     print(f"average dealer wins: {nice_format(dealer_wins)}")
     print(f"average dealer errors: {nice_format(dealer_errors)}")
-    print()
-    print(f"average winner: {winner/total_rounds:.2f}")
