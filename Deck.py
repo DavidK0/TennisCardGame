@@ -1,3 +1,5 @@
+# This script represents a deck of cards, and the cards
+
 import random
 
 class Card:
@@ -84,3 +86,18 @@ class Deck:
                 best_card = card
         return best_card
 
+    # sorts the deck so that the highest ranking cards are at the top
+    def sort_by_rank(self):
+        self.cards.sort(key=lambda card: -card.numeric_rank(), reverse=True)
+
+    # sorts the deck so that the most common suit is on the top, and
+    #   within a suit the highest rank is on the top
+    def sort_by_suit_and_rank(self):
+        suit_count = {'C': 0, 'D': 0, 'H': 0, 'S': 0}
+        
+        # Count the number of cards for each suit
+        for card in self.cards:
+            suit_count[card.suit] += 1
+        
+        # Sort the cards using a custom sorting key
+        self.cards.sort(key=lambda card: (suit_count[card.suit], -card.numeric_rank()), reverse=True)
