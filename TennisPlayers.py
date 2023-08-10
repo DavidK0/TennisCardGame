@@ -57,7 +57,7 @@ class RandomTennisPlayer(TennisPlayer):
 
 # This Tennis player makes a specific bid but otherwise plays randomly
 # The bid is the average win in a Random vs. Random faceoff
-class AverageBetRandomPlayer(TennisPlayer):
+class AverageBidRandomPlayer(TennisPlayer):
     def make_backhand_bid(self):
         return self.backhand.closest_rank_card(1)
     

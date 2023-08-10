@@ -2,7 +2,7 @@ from Deck import Deck
 from Deck import Card
 from TennisPlayers import TennisPlayer
 from TennisPlayers import RandomTennisPlayer
-from TennisPlayers import AverageBetRandomPlayer
+from TennisPlayers import AverageBidRandomPlayer
 
 def PlayTennisRound(player1: type, player2: type, trump_suit, verbose=False):
     players = [player1("leader"), player2("dealer")]
@@ -147,19 +147,35 @@ def add_number_pairs(number_pair1, number_pair2):
 
 if __name__ == "__main__":
     player1 = RandomTennisPlayer
-    player2 = RandomTennisPlayer
+    player2 = AverageBidRandomPlayer
 
     # the numer of pairs of rounds to play
-    num_round_pairs = 100000
+    num_round_pairs = 1000
 
     # track stats
     p1_bids = [0, 0]
     p1_wins = [0, 0]
     p1_errors = [0, 0]
+    
+    p1_as_leader_bids = [0, 0]
+    p1_as_leader_wins = [0, 0]
+    p1_as_leader_errors = [0, 0]
+    
+    p1_as_dealer_bids = [0, 0]
+    p1_as_dealer_wins = [0, 0]
+    p1_as_dealer_errors = [0, 0]
 
     p2_bids = [0, 0]
     p2_wins = [0, 0]
     p2_errors = [0, 0]
+    
+    p2_as_leader_bids = [0, 0]
+    p2_as_leader_wins = [0, 0]
+    p2_as_leader_errors = [0, 0]
+    
+    p2_as_dealer_bids = [0, 0]
+    p2_as_dealer_wins = [0, 0]
+    p2_as_dealer_errors = [0, 0]
 
     leader_bids = [0, 0]
     leader_wins = [0, 0]
@@ -182,10 +198,27 @@ if __name__ == "__main__":
             p1_bids = add_number_pairs(p1_bids, rounds[i][0][i][0])
             p1_wins = add_number_pairs(p1_wins, rounds[i][0][i][1])
             p1_errors = add_number_pairs(p1_errors, rounds[i][0][i][2])
-
+            
             p2_bids = add_number_pairs(p2_bids, rounds[i][0][1-i][0])
             p2_wins = add_number_pairs(p2_wins, rounds[i][0][1-i][1])
             p2_errors = add_number_pairs(p2_errors, rounds[i][0][1-i][2])
+            
+            if i == 0:
+                p1_as_leader_bids = add_number_pairs(p1_as_leader_bids, rounds[i][0][0][0])
+                p1_as_leader_wins = add_number_pairs(p1_as_leader_wins, rounds[i][0][0][1])
+                p1_as_leader_errors = add_number_pairs(p1_as_leader_errors, rounds[i][0][0][2])
+                
+                p2_as_dealer_bids = add_number_pairs(p2_as_dealer_bids, rounds[i][0][1][0])
+                p2_as_dealer_wins = add_number_pairs(p2_as_dealer_wins, rounds[i][0][1][1])
+                p2_as_dealer_errors = add_number_pairs(p2_as_dealer_errors, rounds[i][0][1][2])
+            else:
+                p2_as_leader_bids = add_number_pairs(p2_as_leader_bids, rounds[i][0][1][0])
+                p2_as_leader_wins = add_number_pairs(p2_as_leader_wins, rounds[i][0][1][1])
+                p2_as_leader_errors = add_number_pairs(p2_as_leader_errors, rounds[i][0][1][2])
+                
+                p1_as_dealer_bids = add_number_pairs(p1_as_dealer_bids, rounds[i][0][0][0])
+                p1_as_dealer_wins = add_number_pairs(p1_as_dealer_wins, rounds[i][0][0][1])
+                p1_as_dealer_errors = add_number_pairs(p1_as_dealer_errors, rounds[i][0][0][2])
 
             leader_bids = add_number_pairs(leader_bids, rounds[i][0][0][0])
             leader_wins = add_number_pairs(leader_wins, rounds[i][0][0][1])
@@ -196,17 +229,33 @@ if __name__ == "__main__":
             dealer_errors = add_number_pairs(dealer_errors, rounds[i][0][1][2])
 
     # print stats
-    def nice_format(num_pair):
-        return [f"{x / total_rounds:.2f}" for x in num_pair]
+    def nice_format(num_pair, factor=1):
+        return [f"{(x / (total_rounds / factor)):.2f}" for x in num_pair]
 
     total_rounds = num_round_pairs * 2
     print(f"average p1 bids: {nice_format(p1_bids)}")
     print(f"average p1 wins: {nice_format(p1_wins)}")
     print(f"average p1 errors: {nice_format(p1_errors)}")
     print()
+    print(f"average p1 as leader bids: {nice_format(p1_as_leader_bids, 2)}")
+    print(f"average p1 as leader wins: {nice_format(p1_as_leader_wins, 2)}")
+    print(f"average p1 as leader errors: {nice_format(p1_as_leader_errors, 2)}")
+    print()
+    print(f"average p1 as dealer bids: {nice_format(p1_as_dealer_bids, 2)}")
+    print(f"average p1 as dealer wins: {nice_format(p1_as_dealer_wins, 2)}")
+    print(f"average p1 as dealer errors: {nice_format(p1_as_dealer_errors, 2)}")
+    print()
     print(f"average p2 bids: {nice_format(p2_bids)}")
     print(f"average p2 wins: {nice_format(p2_wins)}")
     print(f"average p2 errors: {nice_format(p2_errors)}")
+    print()
+    print(f"average p2 as leader bids: {nice_format(p2_as_leader_bids, 2)}")
+    print(f"average p2 as leader wins: {nice_format(p2_as_leader_wins, 2)}")
+    print(f"average p2 as leader errors: {nice_format(p2_as_leader_errors, 2)}")
+    print()
+    print(f"average p2 as dealer bids: {nice_format(p2_as_dealer_bids, 2)}")
+    print(f"average p2 as dealer wins: {nice_format(p2_as_dealer_wins, 2)}")
+    print(f"average p2 as dealer errors: {nice_format(p2_as_dealer_errors, 2)}")
     print()
     print(f"average leader bids: {nice_format(leader_bids)}")
     print(f"average leader wins: {nice_format(leader_wins)}")
