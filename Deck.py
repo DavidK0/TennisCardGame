@@ -87,8 +87,9 @@ class Deck:
         return best_card
 
     # sorts the deck so that the highest ranking cards are at the top
-    def sort_by_rank(self):
-        self.cards.sort(key=lambda card: -card.numeric_rank(), reverse=True)
+    # set reverse to false to put low ranking cards at the top
+    def sort_by_rank(self, reverse=True):
+        self.cards.sort(key=lambda card: -card.numeric_rank(), reverse=reverse)
 
     # sorts the deck so that the most common suit is on the top, and
     #   within a suit the highest rank is on the top

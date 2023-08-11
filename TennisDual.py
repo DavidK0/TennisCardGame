@@ -15,7 +15,7 @@ if __name__ == "__main__":
     player2 = AgressivePlayer
 
     # the numer of pairs of rounds to play
-    num_round_pairs = 10000
+    num_round_pairs = 1
 
     # track stats
     p1_bids = [0, 0]
@@ -59,7 +59,7 @@ if __name__ == "__main__":
     for round in range(num_round_pairs):
         print(f"Playing rounds: {round/num_round_pairs:.1%}", end="\r")
         trump_suit = None
-        round1_info, round2_info = Tennis.PlayTwoRounds(player1, player2, trump_suit, False)
+        round1_info, round2_info = Tennis.PlayTwoRounds(player1, player2, trump_suit, True)
 
         # track stats
         rounds = [round1_info, round2_info]

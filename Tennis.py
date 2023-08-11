@@ -149,6 +149,28 @@ def GetWinningCard(trick_cards, trump_suit):
             highest_card = card
     return highest_card
 
+# looks through the list of cards and returns the first card that would win this trick
+# returns None if no winning card is found
+def GetFirstWinningCard(trick_cards, trump_suit, cards: list):
+    for card in cards:
+        new_trick = Deck()
+        new_trick.cards = [x for x in trick_cards.cards]
+        new_trick.add(card)
+        if GetWinningCard(new_trick, trump_suit) == card:
+            return card
+    return None
+    
+# looks through the list of cards and returns the first card that would not win this trick
+# returns None if no losing card is found
+def GetFirstLosingCard(trick_cards, trump_suit, cards: list):
+    for card in cards:
+        new_trick = Deck()
+        new_trick.cards = [x for x in trick_cards.cards]
+        new_trick.add(card)
+        if GetWinningCard(new_trick, trump_suit) != card:
+            return card
+    return None
+
 # play two rounds, alternating dealer, with the given trump suit
 def PlayTwoRounds(player1: type, player2: type, trump_suit, verbose=False):
     round1_info = PlayTennisRound(player1, player2, trump_suit, verbose)

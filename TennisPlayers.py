@@ -91,21 +91,29 @@ class AgressivePlayer(TennisPlayer):
     
     def play(self, trick_cards, trump_suit, opponent_revealed_info):
         import Tennis
-        if len(trick_cards)<2: # return a forehand card
-            for card in self.forehand.cards: # return the first winning card
-                new_trick = Deck()
-                new_trick.cards = [x for x in trick_cards.cards]
-                new_trick.add(card)
-                if Tennis.GetWinningCard(new_trick, trump_suit) == card:
-                    return card
-            # if no winning card can be found, play something random
-            return random.choice(self.forehand.cards)
-        else: # return a backhand card
-            for card in self.backhand.cards: # return the first winning card
-                new_trick = Deck()
-                new_trick.cards = [x for x in trick_cards.cards]
-                new_trick.add(card)
-                if Tennis.GetWinningCard(new_trick, trump_suit) == card:
-                    return card
-            # if no winning card can be found, play something random
-            return random.choice(self.backhand.cards)
+        self.forehand.sort_by_rank(False)
+        self.backhand.sort_by_rank(False)
+        if self.role == "leader":
+            if len(trick_cards)<2: # return a forehand card
+                firstWinningCard = Tennis.GetFirstWinningCard(trick_cards, trump_suit, self.forehand.cards) # return the first winning card
+                if not firstWinningCard: # if no winning card can be found, play something random
+                    firstWinningCard = self.forehand.cards[0]
+                return firstWinningCard
+
+            else: # return a backhand card
+                firstWinningCard = Tennis.GetFirstWinningCard(trick_cards, trump_suit, self.backhand.cards) # return the first winning card
+                if not firstWinningCard: # if no winning card can be found, play something random
+                    firstWinningCard = random.choice(self.backhand.cards)
+                return firstWinningCard
+        else:
+            if len(trick_cards)<2: # return a forehand card
+                firstWinningCard = Tennis.GetFirstWinningCard(trick_cards, trump_suit, self.forehand.cards) # return the first winning card
+                if not firstWinningCard: # if no winning card can be found, play something random
+                    firstWinningCard = random.choice(self.forehand.cards)
+                return firstWinningCard
+
+            else: # return a backhand card
+                firstWinningCard = Tennis.GetFirstWinningCard(trick_cards, trump_suit, self.backhand.cards) # return the first winning card
+                if not firstWinningCard: # if no winning card can be found, play something random
+                    firstWinningCard = random.choice(self.backhand.cards)
+                return firstWinningCard
