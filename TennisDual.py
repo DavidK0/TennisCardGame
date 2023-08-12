@@ -2,7 +2,7 @@
 
 import Tennis
 
-from TennisPlayers import RandomTennisPlayer
+from Tennis import RandomTennisPlayer
 from TennisPlayers import AverageBidRandomPlayer
 from TennisPlayers import AgressivePlayer
 
@@ -15,7 +15,7 @@ if __name__ == "__main__":
     player2 = AgressivePlayer
 
     # the numer of pairs of rounds to play
-    num_round_pairs = 1
+    num_round_pairs = 5000
 
     # track stats
     p1_bids = [0, 0]
@@ -59,7 +59,7 @@ if __name__ == "__main__":
     for round in range(num_round_pairs):
         print(f"Playing rounds: {round/num_round_pairs:.1%}", end="\r")
         trump_suit = None
-        round1_info, round2_info = Tennis.PlayTwoRounds(player1, player2, trump_suit, True)
+        round1_info, round2_info = Tennis.PlayTwoRounds(player1, player2, trump_suit, False)
 
         # track stats
         rounds = [round1_info, round2_info]
@@ -119,7 +119,7 @@ if __name__ == "__main__":
 
     total_rounds = num_round_pairs * 2
     print("\n")
-    print(player1.__name__)
+    print(f"* {player1.__name__} *")
     print()
     print(f"average p1 bids: {nice_format(p1_bids)}")
     print(f"average p1 wins: {nice_format(p1_wins)}")
@@ -133,7 +133,7 @@ if __name__ == "__main__":
     print(f"average p1 as dealer wins: {nice_format(p1_as_dealer_wins, 2)}")
     print(f"average p1 as dealer errors: {nice_format(p1_as_dealer_errors, 2)}")
     print()
-    print(player2.__name__)
+    print(f"* {player2.__name__} *")
     print()
     print(f"average p2 bids: {nice_format(p2_bids)}")
     print(f"average p2 wins: {nice_format(p2_wins)}")
@@ -146,6 +146,8 @@ if __name__ == "__main__":
     print(f"average p2 as dealer bids: {nice_format(p2_as_dealer_bids, 2)}")
     print(f"average p2 as dealer wins: {nice_format(p2_as_dealer_wins, 2)}")
     print(f"average p2 as dealer errors: {nice_format(p2_as_dealer_errors, 2)}")
+    print()
+    print(f"* Combined Stats *")
     print()
     print(f"average leader bids: {nice_format(leader_bids)}")
     print(f"average leader wins: {nice_format(leader_wins)}")

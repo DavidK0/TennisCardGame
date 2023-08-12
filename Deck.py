@@ -76,19 +76,20 @@ class Deck:
         return f"[{', '.join([str(card) for card in self.cards])}]"
 
     # returns the card that is closest to the given rank
+    # in the case of a tie, the lower cards by rank is chosen
     def closest_rank_card(self, rank):
         best_dist = 100 # some high value
         best_card = None
         for card in self.cards:
             new_dist = abs(rank - card.numeric_rank())
-            if new_dist < best_dist:
+            if new_dist < best_dist or (new_dist == best_dist and card.numeric_rank() < rank):
                 best_dist = new_dist
                 best_card = card
         return best_card
 
     # sorts the deck so that the highest ranking cards are at the top
     # set reverse to false to put low ranking cards at the top
-    def sort_by_rank(self, reverse=True):
+    def sort_by_rank(self, reverse=False):
         self.cards.sort(key=lambda card: -card.numeric_rank(), reverse=reverse)
 
     # sorts the deck so that the most common suit is on the top, and
