@@ -1,4 +1,4 @@
-# This scirpt pits two players against each other
+# This scirpt pits two Tennis players against each other
 
 import Tennis
 
@@ -6,18 +6,12 @@ from Tennis import RandomTennisPlayer
 from Tennis import HumanCommandLinePlayer
 from TennisPlayers import AverageBidRandomPlayer
 from TennisPlayers import AgressivePlayer
+from TennisPlayers import AgressiveLeaderPassiveDealerPlayer
 
-# takes two lists of number, each with length 2, and adds them element wise
-def add_number_pairs(number_pair1, number_pair2):
-    return [number_pair1[0] + number_pair2[0], number_pair1[1] + number_pair2[1]]
-
-if __name__ == "__main__":
-    player2 = AgressivePlayer
-    player1 = HumanCommandLinePlayer
-
-    # the numer of pairs of rounds to play
-    num_round_pairs = 10000
-
+# Plays pairs of rounds of Tennis with the two players
+# Rounds come in pairs because the dealer alternates each round
+# Stats are tracked and printed
+def PlayTennisRoundPairs(player1: Tennis.TennisPlayer, player2: Tennis.TennisPlayer, num_round_pairs, verbose=False):
     # track stats
     p1_bids = [0, 0]
     p1_wins = [0, 0]
@@ -55,12 +49,16 @@ if __name__ == "__main__":
     p2_round_wins = 0
     leader_round_wins = 0
     dealer_round_wins = 0
-
+    
+    # takes two lists of number, each with length 2, and adds them element wise
+    def add_number_pairs(number_pair1, number_pair2):
+        return [number_pair1[0] + number_pair2[0], number_pair1[1] + number_pair2[1]]
+    
     #for trump_suit in [None]:
     for round in range(num_round_pairs):
         print(f"Playing rounds: {round/num_round_pairs:.1%}", end="\r")
         trump_suit = None
-        round1_info, round2_info = Tennis.PlayTwoRounds(player1, player2, trump_suit, False)
+        round1_info, round2_info = Tennis.PlayTwoRounds(player1, player2, trump_suit, verbose)
 
         # track stats
         rounds = [round1_info, round2_info]
@@ -163,3 +161,38 @@ if __name__ == "__main__":
     print(f"leader win rate: {leader_round_wins/total_rounds:.1%}")
     print(f"dealer win rate: {dealer_round_wins/total_rounds:.1%}")
     print(f"tie rate: {(total_rounds-p1_round_wins-p2_round_wins)/total_rounds:.1%}")
+    
+    # Given values
+
+    
+    # Perform a chi-squared test
+    def chi_squared_test(observed_successes, total_trials, expected_success_rate):
+        expected_failures = total_trials - observed_successes
+        expected_successes = total_trials * expected_success_rate
+        expected_failures_rate = 1 - expected_success_rate
+
+        chi_squared = (
+            (observed_successes - expected_successes) ** 2 / expected_successes +
+            (expected_failures - (total_trials * expected_failures_rate)) ** 2 / (total_trials * expected_failures_rate)
+        )
+
+        degrees_of_freedom = 1  # for a two-tailed test with 1 degree of freedom
+        critical_value = 3.841  # for a 95% confidence level
+
+        if chi_squared > critical_value:
+            return True, chi_squared  # Reject null hypothesis, significant difference
+        else:
+            return False,chi_squared  # Fail to reject null hypothesis, not a significant difference
+    significant_difference,chi_squared = chi_squared_test(p1_round_wins, total_rounds, .5)
+    #print(f"\nChi-squared test passed: {significant_difference}. Chi-squared value: {chi_squared:.1f}")
+
+
+if __name__ == "__main__":
+    # The two players
+    player1 = AgressivePlayer
+    player2 = AgressiveLeaderPassiveDealerPlayer
+    
+    # The numer of pairs of rounds to play
+    num_round_pairs = 10000
+    
+    PlayTennisRoundPairs(player1, player2, num_round_pairs, False)
