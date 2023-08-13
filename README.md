@@ -1,7 +1,7 @@
 # TennisCardGame
 This is a python implementation of the two player card game [Tennis](https://etgdesign.com/games/tennis/). Tennis is essentially a two-player version of [Contact Bridge](https://en.wikipedia.org/wiki/Contract_bridge). The main difference is that players strive to match their bids for tricks in each of their two hands, their forehand and their backhand.
 
-To play, clone the repository and run `python TennisDual.py`. This will simulator many randomly played rounds. In the future I will implement a human player option, more rule based AI players, and possibly a strategy guide.
+To play, clone the repository and run `python TennisDual.py`. You can switch out the players inside that script, including human players and AI players. In the future I might implement, better rule based AI players, a better human player interface, and possibly a strategy guide.
 
 # Players #
 The base class for `TennisPlayer` as well as `RandomPlayer` are found in Tennis.py.
