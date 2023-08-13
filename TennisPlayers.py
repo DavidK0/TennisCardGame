@@ -5,13 +5,13 @@ import random
 # The bid is the average win in a Random vs. Random faceoff
 class AverageBidRandomPlayer(Tennis.TennisPlayer):
     def make_backhand_bid(self, trump_suit):
-        return self.backhand.closest_rank_card(0)
+        return self.backhand.closest_bid_card(0)
     
     def make_forehand_bid(self, trump_suit, opponent_revealed_info):
         if self.role == "leader":
-            return self.forehand.closest_rank_card(8)
+            return self.forehand.closest_bid_card(8)
         else:
-            return self.forehand.closest_rank_card(0)
+            return self.forehand.closest_bid_card(0)
     
     def play(self, trick_cards, trump_suit, opponent_revealed_info):
         if len(trick_cards)<2: # return a forehand card
@@ -23,15 +23,15 @@ class AverageBidRandomPlayer(Tennis.TennisPlayer):
 class AgressivePlayer(Tennis.TennisPlayer):
     def make_backhand_bid(self, trump_suit):
         if self.role == "leader":
-            return self.backhand.closest_rank_card(0)
+            return self.backhand.closest_bid_card(1)
         else:
-            return self.backhand.closest_rank_card(0)
+            return self.backhand.closest_bid_card(2)
 
     def make_forehand_bid(self, trump_suit, opponent_revealed_info):
         if self.role == "leader":
-            return self.forehand.closest_rank_card(9)
+            return self.forehand.closest_bid_card(9)
         else:
-            return self.forehand.closest_rank_card(5)
+            return self.forehand.closest_bid_card(5)
     
     def play(self, trick_cards, trump_suit, opponent_revealed_info):
         self.backhand.sort_by_rank()

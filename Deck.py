@@ -52,7 +52,9 @@ class Deck:
     def draw(self, num):
         if num > len(self.cards):
             raise ValueError("Not enough cards in the deck.")
-        return [self.cards.pop() for _ in range(num)]
+        return_deck = Deck()
+        return_deck.cards = [self.cards.pop() for _ in range(num)]
+        return return_deck
     
     # returns the given card, if it is in the deck
     def play(self, card: Card):
@@ -67,6 +69,8 @@ class Deck:
             self.cards.append(cards)
         elif isinstance(cards, list):
             self.cards.extend(cards)
+        elif isinstance(cards, Deck):
+            self.cards.extend(cards.cards)
     
     # returns the number of cards in the deck
     def __len__(self):
@@ -83,6 +87,28 @@ class Deck:
         for card in self.cards:
             new_dist = abs(rank - card.numeric_rank())
             if new_dist < best_dist or (new_dist == best_dist and card.numeric_rank() < rank):
+                best_dist = new_dist
+                best_card = card
+        return best_card
+        
+    # returns the card that is closest to the given BID
+    # in the case of a tie, the lower cards by rank is chosen
+    # used for Tennis
+    def closest_bid_card(self, bid):
+        # the value of cards during a bid is different than during a trick
+        def get_bid_value(card: Card):
+            rank = card.numeric_rank()
+            if rank == 13:
+                return 0
+            elif rank == 14:
+                return 1
+            else:
+                return rank
+        best_dist = 100 # some high value
+        best_card = None
+        for card in self.cards:
+            new_dist = abs(bid - get_bid_value(card))
+            if new_dist < best_dist or (new_dist == best_dist and get_bid_value(card) < bid):
                 best_dist = new_dist
                 best_card = card
         return best_card

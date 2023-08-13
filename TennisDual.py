@@ -11,11 +11,11 @@ def add_number_pairs(number_pair1, number_pair2):
     return [number_pair1[0] + number_pair2[0], number_pair1[1] + number_pair2[1]]
 
 if __name__ == "__main__":
-    player1 = AverageBidRandomPlayer
+    player1 = RandomTennisPlayer
     player2 = AgressivePlayer
 
     # the numer of pairs of rounds to play
-    num_round_pairs = 5000
+    num_round_pairs = 10000
 
     # track stats
     p1_bids = [0, 0]

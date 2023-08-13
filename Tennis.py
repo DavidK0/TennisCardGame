@@ -60,11 +60,11 @@ def PlayTennisRound(player1: type, player2: type, trump_suit, verbose=False):
         players[i].forehand_bid_value = get_bid_value(players[i].forehand_bid_card) # set the bid value
     
     if verbose:
-        print(f"Player 1 bids: {players[0].forehand_bid_value}, {players[0].backhand_bid_value}")
-        print(f"Player 2 bids: {players[1].forehand_bid_value}, {players[1].backhand_bid_value}")
+        print(f"Player 1 bids: [{players[0].forehand_bid_card}, {players[0].backhand_bid_card}]")
+        print(f"Player 2 bids: [{players[1].forehand_bid_card}, {players[1].backhand_bid_card}]")
     
     # play 12 tricks
-    for trick in range(12):
+    for trick in range(1, 13):
         trick_cards = Deck()
         
         # play four cards
@@ -100,11 +100,6 @@ def PlayTennisRound(player1: type, player2: type, trump_suit, verbose=False):
         if verbose:
             print(f"Trick {trick}: {trick_cards} -> {str(highest_card)}")
     
-    if verbose:
-        print(f"P1 wins: {players[0].forehand_wins}, {players[0].backhand_wins}")
-        print(f"P2 wins: {players[1].forehand_wins}, {players[1].backhand_wins}")
-        print()
-    
     ## Prepare information to be returned ##
     
     # Get bids, wins, and errors
@@ -126,6 +121,11 @@ def PlayTennisRound(player1: type, player2: type, trump_suit, verbose=False):
         winner = 1
     else:
         winner = -1
+            
+    if verbose:
+        print(f"P1 score: [{players[0].forehand_wins}, {players[0].backhand_wins}] -> {p1_total_error}  {type(players[0]).__name__}")
+        print(f"P2 score: [{players[1].forehand_wins}, {players[1].backhand_wins}] -> {p2_total_error}  {type(players[1]).__name__}")
+        print()
 
     round_info = (player_infos, winner)
     return round_info
