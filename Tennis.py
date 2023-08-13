@@ -219,6 +219,36 @@ class TennisPlayer:
     def show(self, trick_cards):
         pass
 
+    def LowestWinningCard(self, trick_cards, trump_suit, deck):
+        deck.sort_by_rank(True)
+        firstWinningCard = GetFirstWinningCard(trick_cards, trump_suit, deck.cards) # return the first winning card
+        if not firstWinningCard: # if no winning card can be found, play the lowest card
+            firstWinningCard = deck.cards[0]
+        return firstWinningCard
+
+    def HighestWinningCard(self, trick_cards, trump_suit, deck):
+        deck.sort_by_rank()
+        firstWinningCard = GetFirstWinningCard(trick_cards, trump_suit, deck.cards) # return the first winning card
+        if not firstWinningCard: # if no winning card can be found, play the highest card
+            firstWinningCard = deck.cards[0]
+        return firstWinningCard
+    
+    # Attempt to lose this trick by mismatching suits
+    # If losing is impossible, play the highest card
+    def ThrowTrick(self, trick_cards, trump_suit):
+        self.backhand.sort_by_suit_and_rank()
+        self.forehand.sort_by_suit_and_rank()
+        if len(trick_cards)<2: # return a forehand card
+            firstLosingCard = GetFirstLosingCard(trick_cards, trump_suit, self.forehand.cards) # return the first winning card
+            if not firstLosingCard: # if no winning card can be found, play the highest card
+                firstLosingCard = self.forehand.cards[-1]
+            return firstLosingCard
+        else: # return a backhand card
+            firstLosingCard = GetFirstLosingCard(trick_cards, trump_suit, self.backhand.cards) # return the first winning card
+            if not firstLosingCard: # if no winning card can be found, play the highest card
+                firstLosingCard = self.backhand.cards[-1]
+            return firstLosingCard
+
 # This Tennis player always picks a random card
 import random
 class RandomTennisPlayer(TennisPlayer):

@@ -7,6 +7,7 @@ from Tennis import RandomTennisPlayer
 from TennisPlayers import AverageBidRandomPlayer
 from TennisPlayers import AgressivePlayer
 from TennisPlayers import AgressiveLeaderPassiveDealerPlayer
+from TennisPlayers import MyFirstSmartTennisPlayer
 
 # Plays a round robin tournament with all players and tracks their wins
 def PlayRoundRobinTournament(players):
@@ -40,7 +41,7 @@ def PlayRoundRobinTournament(players):
 
 if __name__ == "__main__":
     # List of players participating in the round-robin tournament
-    players = [RandomTennisPlayer, AverageBidRandomPlayer, AgressivePlayer, AgressiveLeaderPassiveDealerPlayer]  # Add more players here if needed
+    players = [RandomTennisPlayer, AverageBidRandomPlayer, AgressivePlayer, AgressiveLeaderPassiveDealerPlayer, MyFirstSmartTennisPlayer]  # Add more players here if needed
     
     total_players = len(players)
     player_names = [player.__name__ for player in players]

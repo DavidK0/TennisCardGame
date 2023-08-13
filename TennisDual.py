@@ -7,6 +7,7 @@ from Tennis import HumanCommandLinePlayer
 from TennisPlayers import AverageBidRandomPlayer
 from TennisPlayers import AgressivePlayer
 from TennisPlayers import AgressiveLeaderPassiveDealerPlayer
+from TennisPlayers import MyFirstSmartTennisPlayer
 
 # Plays pairs of rounds of Tennis with the two players
 # Rounds come in pairs because the dealer alternates each round
@@ -189,7 +190,7 @@ def PlayTennisRoundPairs(player1: Tennis.TennisPlayer, player2: Tennis.TennisPla
 
 if __name__ == "__main__":
     # The two players
-    player1 = AgressivePlayer
+    player1 = MyFirstSmartTennisPlayer
     player2 = AgressiveLeaderPassiveDealerPlayer
     
     # The numer of pairs of rounds to play
