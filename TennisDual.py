@@ -3,6 +3,7 @@
 import Tennis
 
 from Tennis import RandomTennisPlayer
+from Tennis import HumanCommandLinePlayer
 from TennisPlayers import AverageBidRandomPlayer
 from TennisPlayers import AgressivePlayer
 
@@ -11,8 +12,8 @@ def add_number_pairs(number_pair1, number_pair2):
     return [number_pair1[0] + number_pair2[0], number_pair1[1] + number_pair2[1]]
 
 if __name__ == "__main__":
-    player1 = RandomTennisPlayer
     player2 = AgressivePlayer
+    player1 = HumanCommandLinePlayer
 
     # the numer of pairs of rounds to play
     num_round_pairs = 10000

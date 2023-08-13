@@ -233,3 +233,78 @@ class RandomTennisPlayer(TennisPlayer):
             return random.choice(self.forehand.cards)
         else: # return a backhand card
             return random.choice(self.backhand.cards)
+
+# This Tennis player can be used to let a human play via the command line
+import re, os
+class HumanCommandLinePlayer(TennisPlayer):
+    def validate_playing_card(self,input_str):
+        pattern = r'^([2-9]|10|[JQKA])([CDHS])$'
+        match = re.match(pattern, input_str)
+        if match:
+            rank, suit = match.groups()
+            return rank, suit
+        else:
+            return None, None
+    
+    def make_backhand_bid(self, trump_suit):
+        os.system('cls')
+        print(f"You are playing as the {self.role}")
+        print(f"Your backhand: {self.backhand}")
+        print(f"Trump suit: {trump_suit}")
+        card = None
+        while not self.backhand.has_card(card):
+            card_str = input("Enter a card for your backhand bid: ").upper()
+            rank, suit = self.validate_playing_card(card_str)
+            if rank and suit:
+                card = Card(rank, suit)
+        return card
+    
+    def make_forehand_bid(self, trump_suit, opponent_revealed_info):
+        os.system('cls')
+        print(f"You are playing as the {self.role}")
+        print(f"\nYour forehand: {self.forehand}")
+        print(f"Your backhand: {self.backhand}")
+        print()
+        print(f"Your backhand bid: {self.backhand_bid_card}")
+        print(f"Opponent's backhand bid: {opponent_revealed_info[1]['card']}")
+        print()
+        print(f"Trump suit: {trump_suit}")
+        card = None
+        while not self.forehand.has_card(card):
+            card_str = input("Enter a card for your forehand bid: ").upper()
+            rank, suit = self.validate_playing_card(card_str)
+            if rank and suit:
+                card = Card(rank, suit)
+        return card
+    
+    def play(self, trick_cards, trump_suit, opponent_revealed_info):
+        os.system('cls')
+        print(f"You are playing as the {self.role}")
+        print(f"\nYour forehand: {self.forehand}")
+        print(f"Your backhand: {self.backhand}")
+        print()
+        print(f"Your bids: {self.forehand_bid_card}, {self.backhand_bid_card}")
+        print(f"Opponent's bids: {opponent_revealed_info[0]['card']}, {opponent_revealed_info[1]['card']}")
+        print()
+        print(f"Trump suit: {trump_suit}")
+        print(f"Trick: {trick_cards}")
+        card = None
+        if len(trick_cards)<2: # return a forehand card
+            while not self.forehand.has_card(card):
+                card_str = input("Play a card form your forehand: ").upper()
+                rank, suit = self.validate_playing_card(card_str)
+                if rank and suit:
+                    card = Card(rank, suit)
+            return card
+        else: # return a backhand card
+            while not self.backhand.has_card(card):
+                card_str = input("Play a card form your backhand: ").upper()
+                rank, suit = self.validate_playing_card(card_str)
+                if rank and suit:
+                    card = Card(rank, suit)
+            return card
+    
+    def show(self, trick_cards):
+        os.system('cls')
+        print(f"The last card played was the {trick_cards.cards[-1]}")
+        input("Enter anything to continue")

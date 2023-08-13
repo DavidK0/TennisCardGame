@@ -11,6 +11,8 @@ class Card:
         return f"{self.rank}{self.suit}"
         
     def __eq__(self, other):
+        if other == None:
+            return False
         same_rank = self.rank == other.rank
         same_suit = self.suit == other.suit
         return same_rank and same_suit
