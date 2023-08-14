@@ -9,7 +9,7 @@ class AverageBidRandomPlayer(Tennis.TennisPlayer):
     
     def make_forehand_bid(self, trump_suit, opponent_revealed_info):
         if self.role == "leader":
-            return self.forehand.closest_bid_card(8)
+            return self.forehand.closest_bid_card(7)
         else:
             return self.forehand.closest_bid_card(1)
     
@@ -29,9 +29,9 @@ class AgressivePlayer(Tennis.TennisPlayer):
 
     def make_forehand_bid(self, trump_suit, opponent_revealed_info):
         if self.role == "leader":
-            return self.forehand.closest_bid_card(10)
+            return self.forehand.closest_bid_card(9)
         else:
-            return self.forehand.closest_bid_card(3)
+            return self.forehand.closest_bid_card(4)
     
     def play(self, trick_cards, trump_suit, opponent_revealed_info):
         self.backhand.sort_by_rank()
@@ -89,13 +89,17 @@ class AgressiveLeaderPassiveDealerPlayer(Tennis.TennisPlayer):
 class MyFirstSmartTennisPlayer(Tennis.TennisPlayer):
     def make_backhand_bid(self, trump_suit):
         if self.role == "leader":
-            return self.backhand.closest_bid_card(2)
+            average_rank = self.backhand.average_numeric_rank()
+            target_bid = average_rank - 6
+            return self.backhand.closest_bid_card(target_bid)
         else:
             return self.backhand.closest_bid_card(0)
 
     def make_forehand_bid(self, trump_suit, opponent_revealed_info):
         if self.role == "leader":
-            return self.forehand.closest_bid_card(7)
+            average_rank = self.forehand.average_numeric_rank()
+            target_bid = average_rank - 2.3
+            return self.forehand.closest_bid_card(target_bid)
         else:
             return self.forehand.closest_bid_card(0)
     

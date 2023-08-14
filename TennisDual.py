@@ -9,6 +9,8 @@ from TennisPlayers import AgressivePlayer
 from TennisPlayers import AgressiveLeaderPassiveDealerPlayer
 from TennisPlayers import MyFirstSmartTennisPlayer
 
+import scipy.stats
+
 # Plays pairs of rounds of Tennis with the two players
 # Rounds come in pairs because the dealer alternates each round
 # Stats are tracked and printed
@@ -50,6 +52,32 @@ def PlayTennisRoundPairs(player1: Tennis.TennisPlayer, player2: Tennis.TennisPla
     p2_round_wins = 0
     leader_round_wins = 0
     dealer_round_wins = 0
+    
+    p1_leader_forehand_rank_averages = []
+    p1_leader_forehand_wins = []
+    p1_leader_backhand_rank_averages = []
+    p1_leader_backhand_wins = []
+    p1_leader_opponent_forehand_bids = []
+    p1_leader_opponent_backhand_bids = []
+    p1_dealer_forehand_rank_averages = []
+    p1_dealer_forehand_wins = []
+    p1_dealer_backhand_rank_averages = []
+    p1_dealer_backhand_wins = []
+    p1_dealer_opponent_forehand_bids = []
+    p1_dealer_opponent_backhand_bids = []
+    
+    p2_leader_forehand_rank_averages = []
+    p2_leader_forehand_wins = []
+    p2_leader_backhand_rank_averages = []
+    p2_leader_backhand_wins = []
+    p2_leader_opponent_forehand_bids = []
+    p2_leader_opponent_backhand_bids = []
+    p2_dealer_forehand_rank_averages = []
+    p2_dealer_forehand_wins = []
+    p2_dealer_backhand_rank_averages = []
+    p2_dealer_backhand_wins = []
+    p2_dealer_opponent_forehand_bids = []
+    p2_dealer_opponent_backhand_bids = []
     
     # takes two lists of number, each with length 2, and adds them element wise
     def add_number_pairs(number_pair1, number_pair2):
@@ -112,6 +140,46 @@ def PlayTennisRoundPairs(player1: Tennis.TennisPlayer, player2: Tennis.TennisPla
                 elif rounds[i][1] == 1:
                     p1_round_wins += 1
                     dealer_round_wins += 1
+            
+            p1_initial_forehand = rounds[i][2][0][0]
+            p1_average_forehand_rank = p1_initial_forehand.average_numeric_rank()
+            
+            p1_initial_backhand = rounds[i][2][0][1]
+            p1_average_backhand_rank = p1_initial_backhand.average_numeric_rank()
+            
+            p2_initial_forehand = rounds[i][2][1][0]
+            p2_average_forehand_rank = p2_initial_forehand.average_numeric_rank()
+            
+            p2_initial_backhand = rounds[i][2][1][1]
+            p2_average_backhand_rank = p2_initial_backhand.average_numeric_rank()
+            if i == 0:
+                p1_leader_forehand_rank_averages.append(p1_average_forehand_rank)
+                p1_leader_forehand_wins.append(rounds[i][0][0][1][0])
+                p1_leader_backhand_rank_averages.append(p1_average_backhand_rank)
+                p1_leader_backhand_wins.append(rounds[i][0][0][1][1])
+                p1_leader_opponent_forehand_bids.append(rounds[i][0][1][1][0])
+                p1_leader_opponent_backhand_bids.append(rounds[i][0][1][1][1])
+                
+                p2_dealer_forehand_rank_averages.append(p2_average_forehand_rank)
+                p2_dealer_forehand_wins.append(rounds[i][0][1][1][0])
+                p2_dealer_backhand_rank_averages.append(p2_average_backhand_rank)
+                p2_dealer_backhand_wins.append(rounds[i][0][1][1][1])
+                p2_dealer_opponent_forehand_bids.append(rounds[i][0][0][1][0])
+                p2_dealer_opponent_backhand_bids.append(rounds[i][0][0][1][1])
+            else:
+                p1_dealer_forehand_rank_averages.append(p2_average_forehand_rank)
+                p1_dealer_forehand_wins.append(rounds[i][0][1][1][0])
+                p1_dealer_backhand_rank_averages.append(p2_average_backhand_rank)
+                p1_dealer_backhand_wins.append(rounds[i][0][1][1][1])
+                p1_dealer_opponent_forehand_bids.append(rounds[i][0][0][1][0])
+                p1_dealer_opponent_backhand_bids.append(rounds[i][0][0][1][1])
+                
+                p2_leader_forehand_rank_averages.append(p1_average_forehand_rank)
+                p2_leader_forehand_wins.append(rounds[i][0][0][1][0])
+                p2_leader_backhand_rank_averages.append(p1_average_backhand_rank)
+                p2_leader_backhand_wins.append(rounds[i][0][0][1][1])
+                p2_leader_opponent_forehand_bids.append(rounds[i][0][1][1][0])
+                p2_leader_opponent_backhand_bids.append(rounds[i][0][1][1][1])
 
     # print stats
     def nice_format(num_pair, factor=1):
@@ -162,6 +230,48 @@ def PlayTennisRoundPairs(player1: Tennis.TennisPlayer, player2: Tennis.TennisPla
     print(f"leader win rate: {leader_round_wins/total_rounds:.1%}")
     print(f"dealer win rate: {dealer_round_wins/total_rounds:.1%}")
     print(f"tie rate: {(total_rounds-p1_round_wins-p2_round_wins)/total_rounds:.1%}")
+    print()
+    print("* Advanced stats *")
+    # output some correlation data
+    # this shoes correlation between the average rank of players initial hands to their final win counts
+    print()
+    print("[slope, y-intercept, pearson coefficient, p-value]")
+    print([f"{x:.2f}" for x in scipy.stats.linregress(p1_leader_forehand_rank_averages, p1_leader_forehand_wins)])
+    print([f"{x:.2f}" for x in scipy.stats.linregress(p1_leader_backhand_rank_averages, p1_leader_backhand_wins)])
+    print([f"{x:.2f}" for x in scipy.stats.linregress(p1_leader_forehand_rank_averages, p1_leader_backhand_wins)])
+    print([f"{x:.2f}" for x in scipy.stats.linregress(p1_leader_backhand_rank_averages, p1_leader_forehand_wins)])
+    print([f"{x:.2f}" for x in scipy.stats.linregress(p1_leader_opponent_forehand_bids, p1_leader_forehand_wins)])
+    print([f"{x:.2f}" for x in scipy.stats.linregress(p1_leader_opponent_forehand_bids, p1_leader_backhand_wins)])
+    print([f"{x:.2f}" for x in scipy.stats.linregress(p1_leader_opponent_backhand_bids, p1_leader_forehand_wins)])
+    print([f"{x:.2f}" for x in scipy.stats.linregress(p1_leader_opponent_backhand_bids, p1_leader_backhand_wins)])
+    print()
+    print([f"{x:.2f}" for x in scipy.stats.linregress(p1_dealer_forehand_rank_averages, p1_dealer_forehand_wins)])
+    print([f"{x:.2f}" for x in scipy.stats.linregress(p1_dealer_backhand_rank_averages, p1_dealer_backhand_wins)])
+    print([f"{x:.2f}" for x in scipy.stats.linregress(p1_dealer_forehand_rank_averages, p1_dealer_backhand_wins)])
+    print([f"{x:.2f}" for x in scipy.stats.linregress(p1_dealer_backhand_rank_averages, p1_dealer_forehand_wins)])
+    print([f"{x:.2f}" for x in scipy.stats.linregress(p1_dealer_opponent_forehand_bids, p1_dealer_forehand_wins)])
+    print([f"{x:.2f}" for x in scipy.stats.linregress(p1_dealer_opponent_forehand_bids, p1_dealer_backhand_wins)])
+    print([f"{x:.2f}" for x in scipy.stats.linregress(p1_dealer_opponent_backhand_bids, p1_dealer_forehand_wins)])
+    print([f"{x:.2f}" for x in scipy.stats.linregress(p1_dealer_opponent_backhand_bids, p1_dealer_backhand_wins)])
+    print()
+    print([f"{x:.2f}" for x in scipy.stats.linregress(p2_leader_forehand_rank_averages, p2_leader_forehand_wins)])
+    print([f"{x:.2f}" for x in scipy.stats.linregress(p2_leader_backhand_rank_averages, p2_leader_backhand_wins)])
+    print([f"{x:.2f}" for x in scipy.stats.linregress(p2_leader_forehand_rank_averages, p2_leader_backhand_wins)])
+    print([f"{x:.2f}" for x in scipy.stats.linregress(p2_leader_backhand_rank_averages, p2_leader_forehand_wins)])
+    print([f"{x:.2f}" for x in scipy.stats.linregress(p2_leader_opponent_forehand_bids, p2_leader_forehand_wins)])
+    print([f"{x:.2f}" for x in scipy.stats.linregress(p2_leader_opponent_forehand_bids, p2_leader_backhand_wins)])
+    print([f"{x:.2f}" for x in scipy.stats.linregress(p2_leader_opponent_backhand_bids, p2_leader_forehand_wins)])
+    print([f"{x:.2f}" for x in scipy.stats.linregress(p2_leader_opponent_backhand_bids, p2_leader_backhand_wins)])
+    print()
+    print([f"{x:.2f}" for x in scipy.stats.linregress(p2_dealer_forehand_rank_averages, p2_dealer_forehand_wins)])
+    print([f"{x:.2f}" for x in scipy.stats.linregress(p2_dealer_backhand_rank_averages, p2_dealer_backhand_wins)])
+    print([f"{x:.2f}" for x in scipy.stats.linregress(p2_dealer_forehand_rank_averages, p2_dealer_backhand_wins)])
+    print([f"{x:.2f}" for x in scipy.stats.linregress(p2_dealer_backhand_rank_averages, p2_dealer_forehand_wins)])
+    print([f"{x:.2f}" for x in scipy.stats.linregress(p2_dealer_opponent_forehand_bids, p2_dealer_forehand_wins)])
+    print([f"{x:.2f}" for x in scipy.stats.linregress(p2_dealer_opponent_forehand_bids, p2_dealer_backhand_wins)])
+    print([f"{x:.2f}" for x in scipy.stats.linregress(p2_dealer_opponent_backhand_bids, p2_dealer_forehand_wins)])
+    print([f"{x:.2f}" for x in scipy.stats.linregress(p2_dealer_opponent_backhand_bids, p2_dealer_backhand_wins)])
+
     
     # Given values
 
@@ -191,9 +301,9 @@ def PlayTennisRoundPairs(player1: Tennis.TennisPlayer, player2: Tennis.TennisPla
 if __name__ == "__main__":
     # The two players
     player1 = MyFirstSmartTennisPlayer
-    player2 = AgressiveLeaderPassiveDealerPlayer
+    player2 = AgressivePlayer
     
     # The numer of pairs of rounds to play
-    num_round_pairs = 10000
+    num_round_pairs = 500
     
     PlayTennisRoundPairs(player1, player2, num_round_pairs, False)

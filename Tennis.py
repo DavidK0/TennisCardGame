@@ -2,6 +2,7 @@
 
 from Deck import Deck
 from Deck import Card
+import copy
 
 # play one tennis round
 # player1 will be the leader, player2 is the dealer
@@ -18,7 +19,11 @@ def PlayTennisRound(player1: type, player2: type, trump_suit, verbose=False):
         player.forehand.add(deck.draw(13))
         player.backhand = Deck()
         player.backhand.add(deck.draw(13))
-
+    
+    # Save the initial hands for later analysis
+    initial_hands = ((copy.deepcopy(players[0].forehand), copy.deepcopy(players[0].backhand)),
+        (copy.deepcopy(players[1].forehand), copy.deepcopy(players[1].backhand)))
+    
     if verbose:
         print("Initial hands")
         print(f"Player 1 forehand: {players[0].forehand}")
@@ -127,7 +132,7 @@ def PlayTennisRound(player1: type, player2: type, trump_suit, verbose=False):
         print(f"P2 score: [{players[1].forehand_wins}, {players[1].backhand_wins}] -> {p2_total_error}  {type(players[1]).__name__}")
         print()
 
-    round_info = (player_infos, winner)
+    round_info = (player_infos, winner, initial_hands)
     return round_info
 
 # returns the winning card from this trick

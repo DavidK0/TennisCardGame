@@ -131,3 +131,11 @@ class Deck:
         
         # Sort the cards using a custom sorting key
         self.cards.sort(key=lambda card: (suit_count[card.suit], -card.numeric_rank()), reverse=True)
+    
+    
+    # find the average rank of this deck
+    def average_numeric_rank(self):
+        total_numeric_rank = 0
+        for card in self.cards:
+            total_numeric_rank += card.numeric_rank()
+        return total_numeric_rank/len(self)
