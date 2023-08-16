@@ -8,6 +8,7 @@ from TennisPlayers import AverageBidRandomPlayer
 from TennisPlayers import AgressivePlayer
 from TennisPlayers import AgressiveLeaderPassiveDealerPlayer
 from TennisPlayers import MyFirstSmartTennisPlayer
+from TennisPlayers import MySecondSmartTennisPlayer
 
 import scipy.stats
 
@@ -301,9 +302,9 @@ def PlayTennisRoundPairs(player1: Tennis.TennisPlayer, player2: Tennis.TennisPla
 if __name__ == "__main__":
     # The two players
     player1 = MyFirstSmartTennisPlayer
-    player2 = AgressivePlayer
+    player2 = MySecondSmartTennisPlayer
     
     # The numer of pairs of rounds to play
-    num_round_pairs = 500
+    num_round_pairs = 2000
     
     PlayTennisRoundPairs(player1, player2, num_round_pairs, False)

@@ -246,12 +246,12 @@ class TennisPlayer:
         if len(trick_cards)<2: # return a forehand card
             firstLosingCard = GetFirstLosingCard(trick_cards, trump_suit, self.forehand.cards) # return the first winning card
             if not firstLosingCard: # if no winning card can be found, play the highest card
-                firstLosingCard = self.forehand.cards[-1]
+                firstLosingCard = self.forehand.cards[0]
             return firstLosingCard
         else: # return a backhand card
             firstLosingCard = GetFirstLosingCard(trick_cards, trump_suit, self.backhand.cards) # return the first winning card
             if not firstLosingCard: # if no winning card can be found, play the highest card
-                firstLosingCard = self.backhand.cards[-1]
+                firstLosingCard = self.backhand.cards[0]
             return firstLosingCard
 
 # This Tennis player always picks a random card

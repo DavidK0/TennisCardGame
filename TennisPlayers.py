@@ -121,15 +121,17 @@ class MyFirstSmartTennisPlayer(Tennis.TennisPlayer):
                     # check if we met our goals
                     if self.forehand_wins < self.forehand_bid_value:
                         # try to win
-                        return self.LowestWinningCard(trick_cards, trump_suit, self.backhand)
+                        return self.HighestWinningCard(trick_cards, trump_suit, self.backhand)
                     else:
                         # try to lose
                         return self.ThrowTrick(trick_cards, trump_suit)
         else:
+            self.backhand.sort_by_suit_and_rank()
+            self.forehand.sort_by_suit_and_rank()
             if len(trick_cards)<2: # return a forehand card
                 firstLosingCard = Tennis.GetFirstLosingCard(trick_cards, trump_suit, self.forehand.cards) # return the first winning card
                 if not firstLosingCard: # if no winning card can be found, play the highest card
-                    firstLosingCard = self.forehand.cards[-1]
+                    firstLosingCard = self.forehand.cards[0]
                 return firstLosingCard
             else:
                 # if the forehand is winning and needs to win, try to lose
