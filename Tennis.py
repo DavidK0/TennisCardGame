@@ -7,29 +7,29 @@ import copy
 # play one tennis round
 # player1 will be the leader, player2 is the dealer
 # trump_suit is one of the suits in Deck.py
-def PlayTennisRound(player1: type, player2: type, trump_suit, verbose=False):
-    players = [player1("leader"), player2("dealer")]
+def PlayTennisRound(leader: type, dealer: type, trump_suit, verbose=False):
+    # Initiate both players
+    leader = leader("leader", trump_suit)
+    dealer = dealer("dealer", trump_suit)
+    
+    # Keep a record of all the moves made
+    # The record is simply a list of 52 cards in the order they were played
+    game_record = []
     
     deck = Deck() # create an empty deck
-    deck.reset() # put 52 cards in and shuffle
+    deck.reset() # put 52 cards in
+    deck.shuffle() # shuffle the deck
     
-    # deal 13 cards to each players hands
-    for player in players:
-        player.forehand = Deck()
-        player.forehand.add(deck.draw(13))
+    # Deal 13 cards to each player's backhand
+    for player in [leader, dealer]:
         player.backhand = Deck()
         player.backhand.add(deck.draw(13))
     
-    # Save the initial hands for later analysis
-    initial_hands = ((copy.deepcopy(players[0].forehand), copy.deepcopy(players[0].backhand)),
-        (copy.deepcopy(players[1].forehand), copy.deepcopy(players[1].backhand)))
-    
+    # Print the backhands
     if verbose:
         print("Initial hands")
-        print(f"Player 1 forehand: {players[0].forehand}")
-        print(f"Player 1 backhand: {players[0].backhand}")
-        print(f"Player 2 forehand: {players[1].forehand}")
-        print(f"Player 2 backhand: {players[1].backhand}")
+        print(f"Player 1 backhand: {leader.backhand}")
+        print(f"Player 2 backhand: {dealer.backhand}")
     
     # the value of cards during a bid is different than during a trick
     def get_bid_value(card: Card):
@@ -41,66 +41,82 @@ def PlayTennisRound(player1: type, player2: type, trump_suit, verbose=False):
         else:
             return rank
     
-    # a handy function to wrap-up already revealed info
-    def get_player_revealed_info(player: TennisPlayer):
-        backhand_bid_card = player.backhand_bid_card
-        forehand_bid_card = player.forehand_bid_card
-        backhand_bid_value = player.backhand_bid_value
-        forehand_bid_value = player.forehand_bid_value
-        backhand_bid = {"card":backhand_bid_card, "value":backhand_bid_value}
-        forehand_bid = {"card":forehand_bid_card, "value":forehand_bid_value}
-        forehand_wins = player.forehand_wins
-        backhand_wins = player.backhand_wins
-        return (forehand_bid, backhand_bid, forehand_wins, backhand_wins)
+    # Place backhand bids
+    for player in [leader, dealer]:
+        card = player.make_backhand_bid() # get the bid card
+        
+        player.backhand_bid["card"] = player.backhand.play(card) # set the bid card
+        player.backhand_bid["value"] = get_bid_value(player.backhand_bid["card"]) # set the bid value
+        
+        game_record.append(card) # Update the game record
     
-    # make bids
-    for player in players: # backhand bids
-        card = player.make_backhand_bid(trump_suit) # get the bid card
-        player.backhand_bid_card = player.backhand.play(card) # set the bid card
-        player.backhand_bid_value = get_bid_value(player.backhand_bid_card) # set the bid value
-    for i in range(2): # forehand bids
-        opponent_revealed_info = get_player_revealed_info(players[1-i]) # get info about the opponent's bid
-        card = players[i].make_forehand_bid(trump_suit, opponent_revealed_info) # get the bid card
-        players[i].forehand_bid_card = players[i].forehand.play(card) # set the bid card
-        players[i].forehand_bid_value = get_bid_value(players[i].forehand_bid_card) # set the bid value
+    # Revealed the backhand bids
+    for player in [leader, dealer]:
+        player.reveal_backhand_bids(leader.backhand_bid, dealer.backhand_bid)
+    
+    # Deal 13 cards to each player's forehand
+    for player in [leader, dealer]:
+        player.forehand = Deck()
+        player.forehand.add(deck.draw(13))
+    
+    # Place forehand bids
+    for player in [leader, dealer]:
+        card = player.make_forehand_bid() # get the bid card
+        player.forehand_bid["card"] = player.forehand.play(card) # set the bid card
+        player.forehand_bid["value"] = get_bid_value(player.backhand_bid["card"]) # set the bid value
+        game_record.append(card) # Update the game record
+    
+    # Revealed the forehand bids
+    for player in [leader, dealer]:
+        player.reveal_forehand_bids(leader.forehand_bid, dealer.forehand_bid)
     
     if verbose:
-        print(f"Player 1 bids: [{players[0].forehand_bid_card}, {players[0].backhand_bid_card}]")
-        print(f"Player 2 bids: [{players[1].forehand_bid_card}, {players[1].backhand_bid_card}]")
+        print(f"Player 1 forehand: {leader.forehand}")
+        print(f"Player 2 forehand: {dealer.forehand}")
+        print(f"Player 1 bids: [{leader.forehand_bid_card}, {leader.backhand_bid_card}]")
+        print(f"Player 2 bids: [{dealer.forehand_bid_card}, {dealer.backhand_bid_card}]")
     
-    # play 12 tricks
+    # Play 12 tricks
     for trick in range(1, 13):
         trick_cards = Deck()
         
-        # play four cards
-        for i in range(4):
-            player_index = i % 2
-            opponent_revealed_info = get_player_revealed_info(players[1-player_index])
-            
-            # play one card
-            card = players[player_index].play(trick_cards, trump_suit, opponent_revealed_info)
-            # check if this is a forehand or backhand play
-            if len(trick_cards)<2:
-                players[player_index].forehand.play(card)
-            else:
-                players[player_index].backhand.play(card)
-            trick_cards.add(card)
-
-        # show the first play what was played on the last trick
-        players[0].show(trick_cards)
+        # Play four cards
+        # Each time a card is played four actions happen
+        # The card is removed from the players hand, the opponent is informed,
+        #   trick_cards is updated, and the game_record is update
+        
+        played_card = leader.forehand.play(leader.play_forehand(trick_cards))
+        dealer.opponent_both_hands.play(played_card)
+        trick_cards.add(played_card)
+        game_record.append(played_card)
+        
+        played_card = dealer.forehand.play(dealer.play_forehand(trick_cards))
+        leader.opponent_both_hands.play(played_card)
+        trick_cards.add(played_card)
+        game_record.append(played_card)
+        
+        played_card = leader.backhand.play(leader.play_backhand(trick_cards))
+        dealer.opponent_both_hands.play(played_card)
+        trick_cards.add(played_card)
+        game_record.append(played_card)
+        
+        played_card = dealer.backhand.play(dealer.play_backhand(trick_cards))
+        trick_cards.add(played_card)
+        leader.opponent_both_hands.play(played_card)
+        game_record.append(played_card)
         
         # determine the highest card
         highest_card = GetWinningCard(trick_cards, trump_suit)
         
         # give one win depending on the highest card
         if highest_card == trick_cards.cards[0]:
-            players[0].forehand_wins += 1
+            leader.forehand_wins += 1
         elif highest_card == trick_cards.cards[1]:
-            players[1].forehand_wins += 1
+            dealer.forehand_wins += 1
         elif highest_card == trick_cards.cards[2]:
-            players[0].backhand_wins += 1
+            leader.backhand_wins += 1
         elif highest_card == trick_cards.cards[3]:
-            players[1].backhand_wins += 1
+            dealer.backhand_wins += 1
         
         if verbose:
             print(f"Trick {trick}: {trick_cards} -> {str(highest_card)}")
@@ -109,11 +125,11 @@ def PlayTennisRound(player1: type, player2: type, trump_suit, verbose=False):
     
     # Get bids, wins, and errors
     player_infos = []
-    for i in range(2):
-        player_bid_info = [players[i].forehand_bid_value, players[i].backhand_bid_value]
-        player_win_info = [players[i].forehand_wins, players[i].backhand_wins]
-        player_forehand_error = abs(players[i].forehand_bid_value - players[i].forehand_wins)
-        player_backhand_error = abs(players[i].backhand_bid_value - players[i].backhand_wins)
+    for player in [leader, dealer]:
+        player_bid_info = [player.forehand_bid["value"], player.backhand_bid["value"]]
+        player_win_info = [player.forehand_wins, player.backhand_wins]
+        player_forehand_error = abs(player.forehand_bid["value"] - player.forehand_wins)
+        player_backhand_error = abs(player.backhand_bid["value"] - player.backhand_wins)
         player_error_info = [player_forehand_error, player_backhand_error]
         player_infos.append((player_bid_info, player_win_info, player_error_info))
 
@@ -128,11 +144,11 @@ def PlayTennisRound(player1: type, player2: type, trump_suit, verbose=False):
         winner = -1
             
     if verbose:
-        print(f"P1 score: [{players[0].forehand_wins}, {players[0].backhand_wins}] -> {p1_total_error}  {type(players[0]).__name__}")
-        print(f"P2 score: [{players[1].forehand_wins}, {players[1].backhand_wins}] -> {p2_total_error}  {type(players[1]).__name__}")
+        print(f"P1 score: [{leader.forehand_wins}, {leader.backhand_wins}] -> {p1_total_error}  {type(leader).__name__}")
+        print(f"P2 score: [{dealer.forehand_wins}, {dealer.backhand_wins}] -> {p2_total_error}  {type(dealer).__name__}")
         print()
 
-    round_info = (player_infos, winner, initial_hands)
+    round_info = (player_infos, winner)
     return round_info
 
 # returns the winning card from this trick
@@ -184,45 +200,77 @@ def GetFirstLosingCard(trick_cards, trump_suit, cards: list):
     return None
 
 # This class is the base class for Tennis players.
-#
-# opponent_revealed_info is a argument passsed to two functions. It is a tuple containing four elements:
-#   forehand_bid: a dictionary with keys "card" and "value"
-#   backhand_bid: a dictionary with keys "card" and "value"
-#   forehand_wins: an int
-#   backhand_wins: an int
 class TennisPlayer:
-    def __init__(self, role):
-        # None of these value should ever be set by the player
-        self.role = role
-        self.forehand = None
-        self.backhand = None
-        self.forehand_bid_card = None
-        self.forehand_bid_value = None
-        self.backhand_bid_card = None
-        self.backhand_bid_value = None
+    def __init__(self, role, trump_suit):
+        # None of these value should ever be set by the manually
+        
+        self.trump_suit = trump_suit
+        
+        # Information about this player #
+        
+        self.role = role # 'leader' or 'dealer'
+        
+        # One deck for each hand
+        self.forehand = Deck()
+        self.backhand = Deck()
+        
+        # One dict (keys = 'card', 'value') for each hand
+        # The data types for 'card' and 'value' are Card and int respectively
+        self.forehand_bid = {"card": None, "value": None}
+        self.backhand_bid = {"card": None, "value": None}
+        
+        # One int for each hand
         self.forehand_wins = 0
         self.backhand_wins = 0
-    
+        
+        # Information about the opponent #
+        
+        # One dict for the all the cards the opponent has
+        self.opponent_both_hands = Deck()
+        self.opponent_both_hands.reset()
+        
+        # One dict (keys = 'card', 'value') for each hand
+        self.opponent_forehand_bid = None
+        self.opponent_backhand_bid = None
+        
+        # One int for each hand
+        self.opponent_forehand_wins = 0
+        self.opponent_backhand_wins = 0
+        
     # Returns a card from the backhand
-    def make_backhand_bid(self, trump_suit):
+    def make_backhand_bid(self):
         raise NotImplementedError("Subclasses must implement the make_backhand_bid method")
     
     # Returns a card from the forehand
-    def make_forehand_bid(self, trump_suit, opponent_revealed_info):
+    def make_forehand_bid(self):
         raise NotImplementedError("Subclasses must implement the make_forehand_bid method")
+    
+    # Reveal the forehand bids
+    def reveal_forehand_bids(self, leader_forehand_bid, dealer_forehand_bid):
+        if self.role == "leader":
+            self.forehand_bid = leader_forehand_bid
+            self.opponent_forehand_bid = dealer_forehand_bid
+        else:
+            self.forehand_bid = dealer_forehand_bid
+            self.opponent_forehand_bid = leader_forehand_bid
+    
+    # Reveal the backhand bids
+    def reveal_backhand_bids(self, leader_backhand_bid, dealer_backhand_bid):
+        if self.role == "leader":
+            self.backhand_bid = leader_backhand_bid
+            self.opponent_backhand_bid = dealer_backhand_bid
+        else:
+            self.backhand_bid = dealer_backhand_bid
+            self.opponent_backhand_bid = leader_backhand_bid
+            
         
     # Returns a card
-    # the current hand (fore or back) must be found implicitly
-    def play(self, trick_cards, trump_suit, opponent_revealed_info):
-        if len(trick_cards)<2: # return a forehand card
-            pass
-        else: # return a backhand card
-            pass
-        raise NotImplementedError("Subclasses must implement the play method")
-    
-    # this is optionally used by the leader to see the last card played in a trick
-    def show(self, trick_cards):
-        pass
+    def play_forehand(self, trick_cards):
+        raise NotImplementedError("Subclasses must implement the play_forehand method")
+        
+    # Returns a card
+    def play_backhand(self, trick_cards):
+        raise NotImplementedError("Subclasses must implement the play_backhand method")
 
     def LowestWinningCard(self, trick_cards, trump_suit, deck):
         deck.sort_by_rank(True)
@@ -257,17 +305,17 @@ class TennisPlayer:
 # This Tennis player always picks a random card
 import random
 class RandomTennisPlayer(TennisPlayer):
-    def make_backhand_bid(self, trump_suit):
+    def make_backhand_bid(self):
         return random.choice(self.backhand.cards)
     
-    def make_forehand_bid(self, trump_suit, opponent_revealed_info):
+    def make_forehand_bid(self):
         return random.choice(self.forehand.cards)
     
-    def play(self, trick_cards, trump_suit, opponent_revealed_info):
-        if len(trick_cards)<2: # return a forehand card
-            return random.choice(self.forehand.cards)
-        else: # return a backhand card
-            return random.choice(self.backhand.cards)
+    def play_backhand(self, trick_cards):
+        return random.choice(self.backhand.cards)
+        
+    def play_forehand(self, trick_cards):
+        return random.choice(self.forehand.cards)
 
 # This Tennis player can be used to let a human play via the command line
 import re, os
