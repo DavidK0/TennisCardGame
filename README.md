@@ -23,3 +23,8 @@ This player figures out which cards it plans to lose from the forehand/win from 
 When two random players compete, the average hand win is around 1.3 except for the leaders forehand which wins 8 on average. Each random player will make about 4.5 forehand errors and 5 backhand errors. When an otherwise random player simply bids as close as it can to those values, it makes only 1.4 errors in each hand. This means that, if you and your opponent are playing randomly, you will average 3 errors just with a fixed-bid strategy. Two random players will tie 20% of the time. Two Agressive players will tie 7% of the time.
 
 So far MyFirstSmartDealer is the reigning Tennis dealer AI \(win rate 93% in a round-robing tournament\), and MySecondSmartLeader is the reigning Tennis leader AI \(win rate 39% in a round-robing tournament\).
+
+# Round-robin Tournament
+Here is the result of a round-robin tournament played by all Tennis AI so far.
+![image](https://github.com/DavidK0/TennisCardGame/assets/9288945/0de51de4-95d6-4bb8-8f50-79ddc3569c4f)
+
