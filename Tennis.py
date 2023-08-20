@@ -28,7 +28,6 @@ def PlayTennisRound(leader: type, dealer: type, trump_suit, verbose=False):
     # Print the backhands
     if verbose:
         print(f"Trump suit: {trump_suit}".ljust(30))
-        print("Initial hands")
         print(f"Player 1 backhand: {leader.backhand}")
         print(f"Player 2 backhand: {dealer.backhand}")
     
@@ -145,8 +144,8 @@ def PlayTennisRound(leader: type, dealer: type, trump_suit, verbose=False):
         winner = -1
             
     if verbose:
-        print(f"P1 score: [{leader.forehand_wins}, {leader.backhand_wins}] -> {p1_total_error}  {type(leader).__name__}")
-        print(f"P2 score: [{dealer.forehand_wins}, {dealer.backhand_wins}] -> {p2_total_error}  {type(dealer).__name__}")
+        print(f"Leader score: [{leader.forehand_bid['value']}, {leader.backhand_bid['value']}] - [{leader.forehand_wins}, {leader.backhand_wins}] = [{player_infos[0][2][0]}, {player_infos[0][2][1]}] -> {p1_total_error}  {type(leader).__name__}")
+        print(f"Dealer score: [{dealer.forehand_bid['value']}, {dealer.backhand_bid['value']}] - [{dealer.forehand_wins}, {dealer.backhand_wins}] = [{player_infos[1][2][0]}, {player_infos[1][2][1]}] -> {p2_total_error}  {type(dealer).__name__}")
         print()
 
     round_info = (player_infos, winner)
@@ -170,14 +169,6 @@ def GetWinningCard(trick_cards, trump_suit):
             highest_card = card
     return highest_card
 
-# play two rounds, alternating dealer, with the given trump suit
-def PlayTwoRounds(player1: type, player2: type, trump_suit, verbose=False):
-    round1_info = PlayTennisRound(player1, player2, trump_suit, verbose)
-    round2_info = PlayTennisRound(player2, player1, trump_suit, verbose)
-    return round1_info, round2_info
-    
-    from Deck import Deck
-
 # looks through the list of cards and returns the first card that would win this trick
 # returns None if no winning card is found
 def GetFirstWinningCard(trick_cards, trump_suit, cards: list):
@@ -199,6 +190,10 @@ def GetFirstLosingCard(trick_cards, trump_suit, cards: list):
         if GetWinningCard(new_trick, trump_suit) != card:
             return card
     return None
+
+# Takes a list of game records and prints a bunch of stats about the game
+def get_game_stats(game_records: list):
+    pass
 
 # This class is the base class for Tennis players.
 class TennisPlayer:

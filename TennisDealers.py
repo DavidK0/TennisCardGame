@@ -64,10 +64,16 @@ class MyFirstSmartDealer(Tennis.TennisPlayer):
     
     def play_forehand(self, trick_cards):
         self.forehand.sort_by_suit_and_rank()
-        firstLosingCard = Tennis.GetFirstLosingCard(trick_cards, self.trump_suit, self.forehand.cards) # return the first winning card
-        if not firstLosingCard: # if no winning card can be found, play the highest card
-            firstLosingCard = self.forehand.cards[0]
-        return firstLosingCard
+        if self.forehand_wins < self.forehand_bid["value"]:
+            firstWinningCard = Tennis.GetFirstWinningCard(trick_cards, self.trump_suit, self.forehand.cards) # return the first winning card
+            if not firstWinningCard: # if no winning card can be found, play the lowest card
+                firstWinningCard = self.forehand.cards[-1]
+            return firstWinningCard
+        else:
+            firstLosingCard = Tennis.GetFirstLosingCard(trick_cards, self.trump_suit, self.forehand.cards) # return the first losing card
+            if not firstLosingCard: # if no losing card can be found, play the highest card
+                firstLosingCard = self.forehand.cards[0]
+            return firstLosingCard
     
     def play_backhand(self, trick_cards):
         self.backhand.sort_by_suit_and_rank()
