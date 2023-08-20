@@ -4,24 +4,19 @@ import random
 
 import Tennis
 from Tennis import RandomTennisPlayer
-import TennisLeaders
-import TennisDealers
+from TennisLeaders import *
+from TennisDealers import *
 
 if __name__ == "__main__":
-    # Load all leaders
-    module_names = dir(TennisLeaders)
-    class_names = [name for name in module_names if isinstance(getattr(TennisLeaders, name), type)]
-    leaders = [getattr(TennisLeaders, name) for name in class_names]
-    leaders.append(RandomTennisPlayer)   
-    
-    # Load all dealers
-    module_names = dir(TennisDealers)
-    class_names = [name for name in module_names if isinstance(getattr(TennisDealers, name), type)]
-    dealers = [getattr(TennisDealers, name) for name in class_names]
-    dealers.append(RandomTennisPlayer)   
-    
-    #player_names = [player.__name__ for player in players]
     num_tournaments = 100
+    
+    # Load the leaders
+    leaders = [RandomTennisPlayer, AverageBidRandomLeader, AgressiveLeader, MyFirstSmartLeader,
+        MySecondSmartLeader]
+    
+    # Load the dealers
+    dealers = [RandomTennisPlayer, AverageBidRandomDealer, AgressiveDealer, PassiveDealer,
+        MyFirstSmartDealer]  
 
     # A 3D array
     outcomes = []

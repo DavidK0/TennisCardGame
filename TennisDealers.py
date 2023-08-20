@@ -31,7 +31,7 @@ class AgressiveDealer(Tennis.TennisPlayer):
     
     def play_forehand(self, trick_cards):
         self.forehand.sort_by_rank()
-        return self.LowestWinningCard(trick_cards, self.trump_suit, self.forehand)
+        return self.LowestWinningCard(trick_cards, self.forehand)
     
     def play_backhand(self, trick_cards):
         self.backhand.sort_by_rank()
@@ -39,7 +39,7 @@ class AgressiveDealer(Tennis.TennisPlayer):
         if Tennis.GetWinningCard(trick_cards, self.trump_suit) == trick_cards.cards[1]:
             return self.backhand.cards[-1] # play the lowest card
         else:
-            return self.LowestWinningCard(trick_cards, self.trump_suit, self.backhand)
+            return self.LowestWinningCard(trick_cards, self.backhand)
             
 class PassiveDealer(Tennis.TennisPlayer):
     def make_backhand_bid(self):
@@ -49,10 +49,10 @@ class PassiveDealer(Tennis.TennisPlayer):
         return self.forehand.closest_bid_card(0)
     
     def play_forehand(self, trick_cards):
-        return self.ThrowTrick(trick_cards, self.trump_suit)
+        return self.ThrowTrick(trick_cards)
         
     def play_backhand(self, trick_cards):
-        return self.ThrowTrick(trick_cards, self.trump_suit)
+        return self.ThrowTrick(trick_cards)
 
 # This is my (Dejvid) first attempt to make a 'smart' player
 class MyFirstSmartDealer(Tennis.TennisPlayer):
@@ -79,7 +79,7 @@ class MyFirstSmartDealer(Tennis.TennisPlayer):
             # check if we met our goals
             if self.backhand_wins < self.backhand_bid["value"]:
                 # try to win
-                return self.HighestWinningCard(trick_cards, self.trump_suit, self.backhand)
+                return self.HighestWinningCard(trick_cards, self.backhand)
             else:
                 # try to lose
-                return self.ThrowTrick(trick_cards, self.trump_suit)
+                return self.ThrowTrick(trick_cards)

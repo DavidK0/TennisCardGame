@@ -27,6 +27,7 @@ def PlayTennisRound(leader: type, dealer: type, trump_suit, verbose=False):
     
     # Print the backhands
     if verbose:
+        print(f"Trump suit: {trump_suit}".ljust(30))
         print("Initial hands")
         print(f"Player 1 backhand: {leader.backhand}")
         print(f"Player 2 backhand: {dealer.backhand}")
@@ -63,7 +64,7 @@ def PlayTennisRound(leader: type, dealer: type, trump_suit, verbose=False):
     for player in [leader, dealer]:
         card = player.make_forehand_bid() # get the bid card
         player.forehand_bid["card"] = player.forehand.play(card) # set the bid card
-        player.forehand_bid["value"] = get_bid_value(player.backhand_bid["card"]) # set the bid value
+        player.forehand_bid["value"] = get_bid_value(player.forehand_bid["card"]) # set the bid value
         game_record.append(card) # Update the game record
     
     # Revealed the forehand bids
@@ -73,8 +74,8 @@ def PlayTennisRound(leader: type, dealer: type, trump_suit, verbose=False):
     if verbose:
         print(f"Player 1 forehand: {leader.forehand}")
         print(f"Player 2 forehand: {dealer.forehand}")
-        print(f"Player 1 bids: [{leader.forehand_bid_card}, {leader.backhand_bid_card}]")
-        print(f"Player 2 bids: [{dealer.forehand_bid_card}, {dealer.backhand_bid_card}]")
+        print(f"Player 1 bids: [{leader.forehand_bid['card']}, {leader.backhand_bid['card']}]")
+        print(f"Player 2 bids: [{dealer.forehand_bid['card']}, {dealer.backhand_bid['card']}]")
     
     # Play 12 tricks
     for trick in range(1, 13):
@@ -272,35 +273,44 @@ class TennisPlayer:
     def play_backhand(self, trick_cards):
         raise NotImplementedError("Subclasses must implement the play_backhand method")
 
-    def LowestWinningCard(self, trick_cards, trump_suit, deck):
+    def LowestWinningCard(self, trick_cards, deck):
         deck.sort_by_rank(True)
-        firstWinningCard = GetFirstWinningCard(trick_cards, trump_suit, deck.cards) # return the first winning card
+        firstWinningCard = GetFirstWinningCard(trick_cards, self.trump_suit, deck.cards) # return the first winning card
         if not firstWinningCard: # if no winning card can be found, play the lowest card
             firstWinningCard = deck.cards[0]
         return firstWinningCard
 
-    def HighestWinningCard(self, trick_cards, trump_suit, deck):
+    def HighestWinningCard(self, trick_cards, deck):
         deck.sort_by_rank()
-        firstWinningCard = GetFirstWinningCard(trick_cards, trump_suit, deck.cards) # return the first winning card
+        firstWinningCard = GetFirstWinningCard(trick_cards, self.trump_suit, deck.cards) # return the first winning card
         if not firstWinningCard: # if no winning card can be found, play the highest card
             firstWinningCard = deck.cards[0]
         return firstWinningCard
     
     # Attempt to lose this trick by mismatching suits
     # If losing is impossible, play the highest card
-    def ThrowTrick(self, trick_cards, trump_suit):
+    def ThrowTrick(self, trick_cards):
         self.backhand.sort_by_suit_and_rank()
         self.forehand.sort_by_suit_and_rank()
         if len(trick_cards)<2: # return a forehand card
-            firstLosingCard = GetFirstLosingCard(trick_cards, trump_suit, self.forehand.cards) # return the first winning card
-            if not firstLosingCard: # if no winning card can be found, play the highest card
+            firstLosingCard = GetFirstLosingCard(trick_cards, self.trump_suit, self.forehand.cards) # return the first losing card
+            if not firstLosingCard: # if no losing card can be found, play the highest card
                 firstLosingCard = self.forehand.cards[0]
             return firstLosingCard
         else: # return a backhand card
-            firstLosingCard = GetFirstLosingCard(trick_cards, trump_suit, self.backhand.cards) # return the first winning card
-            if not firstLosingCard: # if no winning card can be found, play the highest card
+            firstLosingCard = GetFirstLosingCard(trick_cards, self.trump_suit, self.backhand.cards) # return the first losing card
+            if not firstLosingCard: # if no losing card can be found, play the highest card
                 firstLosingCard = self.backhand.cards[0]
             return firstLosingCard
+    
+    # Returns True if card1 beats card2
+    # card2 can only beat card1 if card2 matches suit with card1 or with trump_suit
+    def CompareCards(self, card1, card2):
+        if card1.suit == card2.suit or card2.suit == self.trump_suit:
+            return card1.numeric_rank() > card2.numeric_rank()
+        else:
+            return True
+        
 
 # This Tennis player always picks a random card
 import random
@@ -342,6 +352,7 @@ class HumanCommandLinePlayer(TennisPlayer):
                 card = Card(rank, suit)
         return card
     
+    # doesn't work
     def make_forehand_bid(self, trump_suit, opponent_revealed_info):
         os.system('cls')
         print(f"You are playing as the {self.role}")
