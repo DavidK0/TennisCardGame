@@ -70,10 +70,8 @@ class MyFirstSmartDealer(Tennis.TennisPlayer):
                 firstWinningCard = self.forehand.cards[-1]
             return firstWinningCard
         else:
-            firstLosingCard = Tennis.GetFirstLosingCard(trick_cards, self.trump_suit, self.forehand.cards) # return the first losing card
-            if not firstLosingCard: # if no losing card can be found, play the highest card
-                firstLosingCard = self.forehand.cards[0]
-            return firstLosingCard
+            # try to lose
+            return self.ThrowTrick(trick_cards)
     
     def play_backhand(self, trick_cards):
         self.backhand.sort_by_suit_and_rank()
@@ -106,10 +104,8 @@ class MySecondSmartDealer(Tennis.TennisPlayer):
                 firstWinningCard = self.forehand.cards[-1]
             return firstWinningCard
         else:
-            firstLosingCard = Tennis.GetFirstLosingCard(trick_cards, self.trump_suit, self.forehand.cards) # return the first losing card
-            if not firstLosingCard: # if no losing card can be found, play the highest card
-                firstLosingCard = self.forehand.cards[0]
-            return firstLosingCard
+            # try to lose
+            return self.ThrowTrick(trick_cards)
     
     def play_backhand(self, trick_cards):
         self.backhand.sort_by_suit_and_rank()
