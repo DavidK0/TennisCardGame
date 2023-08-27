@@ -37,7 +37,7 @@ class Deck:
     # puts 52 cards in the deck and shuffles it
     def reset(self):
         ranks = ['2', '3', '4', '5', '6', '7', '8', '9', '10', 'J', 'Q', 'K', 'A']
-        suits = ['C', 'D', 'H', 'S']
+        suits = ['C', 'S', 'H', 'D']
         self.cards = [Card(rank, suit) for suit in suits for rank in ranks]
     
     # shuffle the deck
