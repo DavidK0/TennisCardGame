@@ -297,6 +297,44 @@ class TennisPlayer:
             if not firstLosingCard: # if no losing card can be found, play the highest card
                 firstLosingCard = self.backhand.cards[0]
             return firstLosingCard
+
+    # Attempt to lose this trick by mismatching suits, in a special way
+    # If losing is impossible, play the highest card
+    def ThrowTrick2(self, trick_cards):
+        suit_count = {'C': self.opponent_both_hands.count_suit("C"),
+                        'D': self.opponent_both_hands.count_suit("D"),
+                        'H': self.opponent_both_hands.count_suit("H"),
+                        'S': self.opponent_both_hands.count_suit("S")}
+        my_forehand_suit_count = {'C': self.forehand.count_suit("C"),
+                                  'D': self.forehand.count_suit("D"),
+                                  'H': self.forehand.count_suit("H"),
+                                  'S': self.forehand.count_suit("S")}
+        my_backhand_suit_count = {'C': self.forehand.count_suit("C"),
+                                  'D': self.forehand.count_suit("D"),
+                                  'H': self.forehand.count_suit("H"),
+                                  'S': self.forehand.count_suit("S")}
+        
+
+        sorted_suits = sorted(suit_count.keys(), key=lambda suit: suit_count[suit], reverse=True)
+        my_forehand_sorted_suits = sorted(my_forehand_suit_count.keys(), key=lambda suit: my_forehand_suit_count[suit], reverse=True)
+        my_backhand_sorted_suits = sorted(my_backhand_suit_count.keys(), key=lambda suit: my_backhand_suit_count[suit], reverse=True)
+
+        # Sort the cards using a custom sorting key
+        self.forehand.cards = sorted(self.forehand.cards, key=lambda card: (sorted_suits.index(card.suit),my_forehand_sorted_suits.index(card.suit), card.numeric_rank()), reverse=True)
+        self.backhand.cards = sorted(self.backhand.cards, key=lambda card: (sorted_suits.index(card.suit),my_backhand_sorted_suits.index(card.suit), card.numeric_rank()), reverse=True)
+        
+        #self.backhand.sort_by_suit_and_rank()
+        #self.forehand.sort_by_suit_and_rank()
+        if len(trick_cards)<2: # return a forehand card
+            firstLosingCard = GetFirstLosingCard(trick_cards, self.trump_suit, self.forehand.cards) # return the first losing card
+            if not firstLosingCard: # if no losing card can be found, play the highest common card
+                firstLosingCard = self.forehand.cards[0]
+            return firstLosingCard
+        else: # return a backhand card
+            firstLosingCard = GetFirstLosingCard(trick_cards, self.trump_suit, self.backhand.cards) # return the first losing card
+            if not firstLosingCard: # if no losing card can be found, play the highest common  card
+                firstLosingCard = self.backhand.cards[0]
+            return firstLosingCard
     
     # Returns True if card1 beats card2
     # card2 can only beat card1 if card2 matches suit with card1 or with trump_suit

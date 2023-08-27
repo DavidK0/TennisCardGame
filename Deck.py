@@ -138,3 +138,11 @@ class Deck:
         for card in self.cards:
             total_numeric_rank += card.numeric_rank()
         return total_numeric_rank/len(self)
+
+    # returns the count of the given suit
+    def count_suit(self, suit):
+        suit_count = 0
+        for card in self.cards:
+            if card.suit == suit:
+                suit_count += 1
+        return suit_count
