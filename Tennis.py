@@ -24,6 +24,8 @@ def PlayTennisRound(leader: type, dealer: type, trump_suit, verbose=False):
     for player in [leader, dealer]:
         player.backhand = Deck()
         player.backhand.add(deck.draw(13))
+        for card in player.backhand.cards:
+            player.opponent_both_hands.play(card)
     
     # Print the backhands
     if verbose:
@@ -51,6 +53,8 @@ def PlayTennisRound(leader: type, dealer: type, trump_suit, verbose=False):
         game_record.append(card) # Update the game record
     
     # Revealed the backhand bids
+    leader.opponent_both_hands.play(dealer.backhand_bid["card"])
+    dealer.opponent_both_hands.play(leader.backhand_bid["card"])
     for player in [leader, dealer]:
         player.reveal_backhand_bids(leader.backhand_bid, dealer.backhand_bid)
     
@@ -58,6 +62,8 @@ def PlayTennisRound(leader: type, dealer: type, trump_suit, verbose=False):
     for player in [leader, dealer]:
         player.forehand = Deck()
         player.forehand.add(deck.draw(13))
+        for card in player.forehand.cards:
+            player.opponent_both_hands.play(card)
     
     # Place forehand bids
     for player in [leader, dealer]:
@@ -67,6 +73,8 @@ def PlayTennisRound(leader: type, dealer: type, trump_suit, verbose=False):
         game_record.append(card) # Update the game record
     
     # Revealed the forehand bids
+    leader.opponent_both_hands.play(dealer.forehand_bid["card"])
+    dealer.opponent_both_hands.play(leader.forehand_bid["card"])
     for player in [leader, dealer]:
         player.reveal_forehand_bids(leader.forehand_bid, dealer.forehand_bid)
     
@@ -111,12 +119,16 @@ def PlayTennisRound(leader: type, dealer: type, trump_suit, verbose=False):
         # give one win depending on the highest card
         if highest_card == trick_cards.cards[0]:
             leader.forehand_wins += 1
+            dealer.opponent_forehand_wins+= 1
         elif highest_card == trick_cards.cards[1]:
             dealer.forehand_wins += 1
+            leader.opponent_forehand_wins += 1
         elif highest_card == trick_cards.cards[2]:
             leader.backhand_wins += 1
+            dealer.opponent_backhand_wins += 1
         elif highest_card == trick_cards.cards[3]:
             dealer.backhand_wins += 1
+            leader.opponent_backhand_wins += 1
         
         if verbose:
             print(f"Trick {trick}: {trick_cards} -> {str(highest_card)}")
