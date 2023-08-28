@@ -1,3 +1,5 @@
+# This script allows a human to play Tennis with a GUI
+
 from Deck import Deck
 from Deck import Card
 
@@ -10,166 +12,198 @@ import random
 import tkinter
 from PIL import Image, ImageTk  # Importing modules for handling images
 
+cards_images = Image.open("cards.png")  # A sprite map of cards
+card_back =  Image.open("card_back.jpg")  # The back of cards
 
-cards_images = Image.open("cards.png")  # Replace "image.png" with your image file
-# Define the dimensions of each small card image
-card_width = cards_images.width // 13
-card_height = cards_images.height // 4
-# Loop through rows and columns to crop and store individual card images
-# This screates a map 'card_images' which maps from the string representation of a card to an image
+# Crop the sprite map of cards into individual cards
+# This creates a map 'card_images' which maps from the string representation of a card to an image
 card_images = {}
-card_counter =  0
+card_size = (cards_images.width // 13, cards_images.height // 4) # The dimensions of each small card image
 example_cards = Deck.Deck()
 example_cards.reset()
 for row in range(4):
     for col in range(13):
-        left = col * card_width
-        top = row * card_height
-        right = left + card_width
-        bottom = top + card_height
-
+        left, top = col * card_size[0], row * card_size[1]
+        right, bottom = left + card_size[0], top + card_size[1]
         card_image = cards_images.crop((left, top, right, bottom))
-        
-        # In the image, the Aces is next to the Duece
-        index = card_counter - 1
-        if card_counter % 13 == 0:
+       
+        index = row * 13 + col - 1  # In the image, the Aces is next to the Duece
+        if col == 0:
             index += 13
         
         card_images[str(example_cards.cards[index])] = card_image
-        card_counter += 1
 
+# This class allows a human play to play Tennis against an AI using a GUI
 class HumanGUIPlayer(Tennis.TennisPlayer):
     def __init__(self, role, trump_suit):
         super().__init__(role, trump_suit)
         
-        self.selected_card = None
-        initial_width = 1200
-        initial_height = 600
+        # Create a tkinter window
         self.root = tkinter.Tk()
-        self.root.title("My Card Game")
+        self.root.title("Tennis GUI")
+        
+        # Size the window
+        initial_width = 800
+        initial_height = 600
         self.root.geometry(f"{initial_width}x{initial_height}")
         
-        # List to store references to PhotoImage objects
-        self.photo_images = []
+        self.selected_card = None # This is used to track clicking cards
+        self.GUI_WAIT_TIME = 1 # Miliseconds to wait between GUI updates
         
-        # Running the main event loop
-        self.loop_control = tkinter.IntVar()  # Variable to signal player action
+        # Diplay text
+        self.display_text = tkinter.StringVar()
+        label = tkinter.Label(self.root, textvariable=self.display_text)
+        self.display_text.set("You are playing as the LEADER")
+        label.place(x=400,y=300)
+    
+    # This allows the player to click on some card
+    def wait_for_card_click(self, card_buttons):
+        # Enable the card buttons
+        for button in card_buttons:
+            button.config(state=tkinter.NORMAL)
+
+        # Wait for the player to click on a card button
+        while self.selected_card is None:
+            self.root.update()  # Process events
+            self.root.after(self.GUI_WAIT_TIME)
+        
+        # Disable the button cards
+        for button in card_buttons:
+            button.config(state=tkinter.DISABLED)
+            
+            # Delete (forget) the seleceted card
+            if button.card_str == str(self.selected_card):
+                button.pack_forget()
+        
+        # Reset the selected card and return it
+        selected_card = self.selected_card
+        self.selected_card = None
+        return selected_card
+    
+    def display_wins():
+        if hasattr(self, "win_card_buttons"):
+            for button in self.win_card_buttons:
+                button.destroy()
+        self.win_card_buttons = []
+        
+        if hasattr(self, "opponent_win_card_buttons"):
+            for button in self.opponent_win_card_buttons:
+                button.destroy()
+        self.opponent_win_card_buttons = []
+        
     
     # Returns a card from the backhand
     def make_backhand_bid(self):
-        self.backhand_card_buttons = self.create_deck_buttons(self.backhand, .5, .75)
-    
-        # Wait for the player to select a card
-        while self.selected_card is None:
-            self.root.update()  # Process events
-            self.root.after(1)
-            
-        for button in self.backhand_card_buttons:
-            button.config(state=tkinter.DISABLED)
-            if button.card_str == str(self.selected_card):
-                button.pack_forget()
-        
-        selected_card = self.selected_card
-        self.selected_card = None  # Reset for the next turn
-        return selected_card
+        self.backhand_card_buttons = self.create_deck_buttons(self.backhand, 0)
+        return self.wait_for_card_click(self.backhand_card_buttons)
         
     # Returns a card from the backhand
     def make_forehand_bid(self):
-        self.forehand_card_buttons = self.create_deck_buttons(self.forehand, .25, .5)
+        self.forehand_card_buttons = self.create_deck_buttons(self.forehand, 1)
+        bid_cards = Deck.Deck()
+        opponent_bid_cards = Deck.Deck()
+        bid_cards.add(self.backhand_bid["card"])
+        opponent_bid_cards.add(self.opponent_backhand_bid["card"])
+        self.bids_card_buttons = self.create_deck_buttons(bid_cards, 4)
+        self.opponent_bids_card_buttons = self.create_deck_buttons(opponent_bid_cards, 3)
     
-        # Wait for the player to select a card
-        while self.selected_card is None:
-            self.root.update()  # Process events
-            self.root.after(1)
-            
-        for button in self.forehand_card_buttons:
-            button.config(state=tkinter.DISABLED)
-            if button.card_str == str(self.selected_card):
-                button.pack_forget()
-        
-        selected_card = self.selected_card
-        self.selected_card = None  # Reset for the next turn
-        return selected_card
+        return self.wait_for_card_click(self.forehand_card_buttons)
     
     def play_forehand(self, trick_cards):
-        for button in self.forehand_card_buttons:
-            button.config(state=tkinter.NORMAL)  # Use the stored image
-
-        # Wait for the player to select a card
-        while self.selected_card is None:
-            self.root.update()  # Process events
-            self.root.after(1)
-
-        for button in self.forehand_card_buttons:
-            button.config(state=tkinter.DISABLED)
-            if button.card_str == str(self.selected_card):
-                button.pack_forget()
-
-        selected_card = self.selected_card
-        self.selected_card = None  # Reset for the next turn
-        return selected_card
+        self.diplay_trick_cards(trick_cards)
+        return self.wait_for_card_click(self.forehand_card_buttons)
     
     def play_backhand(self, trick_cards):
-        for button in self.backhand_card_buttons:
-            button.config(state=tkinter.NORMAL)  # Use the stored image
-
-        # Wait for the player to select a card
-        while self.selected_card is None:
-            self.root.update()  # Process events
-            self.root.after(1)
-
-        for button in self.backhand_card_buttons:
-            button.config(state=tkinter.DISABLED)
-            if button.card_str == str(self.selected_card):
-                button.pack_forget()
-
-        selected_card = self.selected_card
-        self.selected_card = None  # Reset for the next turn
-        return selected_card
+        self.diplay_trick_cards(trick_cards)
+        return self.wait_for_card_click(self.backhand_card_buttons)
     
-    def create_deck_buttons(self, deck: Deck, x, y):
+    def diplay_trick_cards(self, trick_cards):
+        if hasattr(self, "trick_card_buttons"):
+            for button in self.trick_card_buttons:
+                button.destroy()
+        self.trick_card_buttons = self.create_deck_buttons(trick_cards, 2, False)
+        for button in self.bids_card_buttons:
+            button.destroy()
+        for button in self.opponent_bids_card_buttons:
+            button.destroy()
+        bid_cards = Deck.Deck()
+        opponent_bid_cards = Deck.Deck()
+        bid_cards.add(self.forehand_bid["card"])
+        opponent_bid_cards.add(self.opponent_forehand_bid["card"])
+        bid_cards.add(self.backhand_bid["card"])
+        opponent_bid_cards.add(self.opponent_backhand_bid["card"])
+        self.bids_card_buttons = self.create_deck_buttons(bid_cards, 4, False)
+        self.opponent_bids_card_buttons = self.create_deck_buttons(opponent_bid_cards, 3, False)
+    
+    def get_card_photo(self, card, rotate=False):
+        card_image = card_images[str(card)]  # Get the corresponding card image
+        
+        # Handle rotation and cropping
+        if rotate:
+            card_image = card_image.rotate(90, expand=True)
+            
+        # Handle cropping
+        width, height = card_image.size
+        card_image = card_image.crop((0, 0, width // 2, height))
+        
+        # Create and return the PhotoImage instance
+        return ImageTk.PhotoImage(card_image)
+    
+    def create_deck_buttons(self, deck: Deck, pos, select_card = True):
         # Clear previously displayed images
-        self.photo_images.clear()
+        #self.photo_images.clear()
 
         deck_frame = tkinter.Frame(self.root)  # Create a new frame to hold the deck images
         
         buttons = [] # this is the list that will be returned
         
+        photo = None
+        card_counter = 0
         for card in deck.cards:
-            card_image = card_images[str(card)]  # Get the corresponding card image
+            # Decide rotation
+            rotate = False
+            if pos == 0:
+                rotate = True
+            elif pos == 2 and card_counter > 2:
+                rotate = True
+            elif pos == 3 and card_counter == len(deck) - 1:
+                rotate = True
+            elif pos == 4 and card_counter == len(deck) - 1:
+                rotate = True
+            
+            photo = self.get_card_photo(card, rotate)
 
-            # Create a PhotoImage instance and keep a reference
-            photo = ImageTk.PhotoImage(card_image)
-            self.photo_images.append(photo)
-
+            # This button will do nothing if 'select_card' is set to calse
+            function = None
+            if select_card:
+                function = lambda c=card: self.card_button_click(c)
+            
             # Create a button with the card image
-            card_button = tkinter.Button(deck_frame, image=photo, command=lambda c=card: self.card_button_click(c))
+            card_button = tkinter.Button(deck_frame, image=photo, command=function)
             card_button.photo = photo  # Store the PhotoImage reference in the button
             card_button.pack(side=tkinter.LEFT)  # Adjust padding as needed
             card_button.card_str = str(card)
             buttons.append(card_button)
-
-        # Function to center the deck_frame
-        def center_deck_frame(x=.5, y=.5, event=None):
-            window_width = self.root.winfo_width()
-            window_height = self.root.winfo_height()
-
-            # Calculate the position to center the deck_frame
-            deck_frame_width = deck_frame.winfo_width()
-            deck_frame_height = deck_frame.winfo_height()
-            x = (window_width - deck_frame_width) * x
-            y = (window_height - deck_frame_height) * y
-
-            # Place the deck frame at the center of the root window
-            deck_frame.place(x=x, y=y)
-
-        # Bind the centering function to the <Configure> event
-        #root.bind("<Configure>", center_deck_frame)
-        self.root.bind("<Configure>", lambda event: center_deck_frame(x=x, y=y, event=event))
+            
+            card_counter += 1
         
-
-        # Initially center the deck_frame
-        center_deck_frame()
+        self.root.update_idletasks() 
+        window_width = self.root.winfo_width()
+        window_height = self.root.winfo_height()
+        
+        if pos == 0:
+            y = window_height - card_size[1]
+        elif pos == 1:
+            y = window_height - card_size[1] * 2
+        elif pos == 2:
+            y = window_height - card_size[1] * 3
+        elif pos == 3:
+            y = window_height - card_size[1] * 4
+        elif pos == 4:
+            y = window_height - card_size[1] * 5
+        x = 0
+        
+        deck_frame.place(x=x, y=y)
         
         return buttons
 
@@ -177,7 +211,6 @@ class HumanGUIPlayer(Tennis.TennisPlayer):
     def card_button_click(self, card):
         self.selected_card = card
 
-
-random_suit = random.choice(["C", "S", "H", "D"])
-round_info = Tennis.PlayTennisRound(HumanGUIPlayer, MyFirstSmartDealer, random_suit, True)
-
+if __name__ == "__main__":
+    random_suit = random.choice(["C", "S", "H", "D"])
+    round_info = Tennis.PlayTennisRound(HumanGUIPlayer, MyFirstSmartDealer, random_suit, True)
