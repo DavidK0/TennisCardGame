@@ -2,6 +2,7 @@
 
 from Deck import Deck
 from Deck import Card
+from TrickTaking import Trick
 import copy
 
 # play one tennis round
@@ -30,6 +31,8 @@ def PlayTennisRound(leader: type, dealer: type, trump_suit, verbose=False):
     # Print the backhands
     if verbose:
         print(f"Trump suit: {trump_suit}".ljust(30))
+        leader.backhand.sort_by_rank()
+        dealer.backhand.sort_by_rank()
         print(f"Player 1 backhand: {leader.backhand}")
         print(f"Player 2 backhand: {dealer.backhand}")
     
@@ -79,59 +82,66 @@ def PlayTennisRound(leader: type, dealer: type, trump_suit, verbose=False):
         player.reveal_forehand_bids(leader.forehand_bid, dealer.forehand_bid)
     
     if verbose:
+        leader.forehand.sort_by_rank()
+        dealer.forehand.sort_by_rank()
         print(f"Player 1 forehand: {leader.forehand}")
         print(f"Player 2 forehand: {dealer.forehand}")
         print(f"Player 1 bids: [{leader.forehand_bid['card']}, {leader.backhand_bid['card']}]")
         print(f"Player 2 bids: [{dealer.forehand_bid['card']}, {dealer.backhand_bid['card']}]")
     
     # Play 12 tricks
-    for trick in range(1, 13):
-        trick_cards = Deck()
+    for trick_number in range(1, 13):
+        trick = Trick(trump_suit)
         
         # Play four cards
         # Each time a card is played four actions happen
         # The card is removed from the players hand, the opponent is informed,
         #   trick_cards is updated, and the game_record is update
         
-        played_card = leader.forehand.play(leader.play_forehand(trick_cards))
+        legal_moves = trick.get_legal_moves(leader.forehand).cards
+        played_card = leader.forehand.play(leader.play_forehand(trick))
+        assert(played_card in legal_moves)
         dealer.opponent_both_hands.play(played_card)
-        trick_cards.add(played_card)
+        trick.add_card(played_card)
         game_record.append(played_card)
         
-        played_card = dealer.forehand.play(dealer.play_forehand(trick_cards))
+        legal_moves = trick.get_legal_moves(dealer.forehand).cards
+        played_card = dealer.forehand.play(dealer.play_forehand(trick))
+        assert(played_card in legal_moves)
         leader.opponent_both_hands.play(played_card)
-        trick_cards.add(played_card)
+        trick.add_card(played_card)
         game_record.append(played_card)
         
-        played_card = leader.backhand.play(leader.play_backhand(trick_cards))
+        legal_moves = trick.get_legal_moves(leader.backhand).cards
+        played_card = leader.backhand.play(leader.play_backhand(trick))
+        assert(played_card in legal_moves)
         dealer.opponent_both_hands.play(played_card)
-        trick_cards.add(played_card)
+        trick.add_card(played_card)
         game_record.append(played_card)
         
-        played_card = dealer.backhand.play(dealer.play_backhand(trick_cards))
-        trick_cards.add(played_card)
+        legal_moves = trick.get_legal_moves(dealer.backhand).cards
+        played_card = dealer.backhand.play(dealer.play_backhand(trick))
+        assert(played_card in legal_moves)
+        trick.add_card(played_card)
         leader.opponent_both_hands.play(played_card)
         game_record.append(played_card)
-        
-        # determine the highest card
-        highest_card = GetWinningCard(trick_cards, trump_suit)
         
         # give one win depending on the highest card
-        if highest_card == trick_cards.cards[0]:
+        if trick.winning_index == 0:
             leader.forehand_wins += 1
             dealer.opponent_forehand_wins+= 1
-        elif highest_card == trick_cards.cards[1]:
+        elif trick.winning_index == 1:
             dealer.forehand_wins += 1
             leader.opponent_forehand_wins += 1
-        elif highest_card == trick_cards.cards[2]:
+        elif trick.winning_index == 2:
             leader.backhand_wins += 1
             dealer.opponent_backhand_wins += 1
-        elif highest_card == trick_cards.cards[3]:
+        elif trick.winning_index == 3:
             dealer.backhand_wins += 1
             leader.opponent_backhand_wins += 1
         
         if verbose:
-            print(f"Trick {trick}: {trick_cards} -> {str(highest_card)}")
+            print(f"Trick {trick_number}: {trick}")
     
     ## Prepare information to be returned ##
     
@@ -162,46 +172,6 @@ def PlayTennisRound(leader: type, dealer: type, trump_suit, verbose=False):
 
     round_info = (player_infos, winner)
     return round_info
-
-# returns the winning card from this trick
-def GetWinningCard(trick_cards, trump_suit):
-    if len(trick_cards) == 0:
-        return None
-    
-    lead_suit = trick_cards.cards[0].suit
-    highest_rank = trick_cards.cards[0].numeric_rank()
-    highest_card = trick_cards.cards[0]
-    for card in trick_cards.cards[1:]:
-        valid_suit = card.suit == trump_suit or card.suit == lead_suit
-        if not valid_suit:
-            continue
-        if ((highest_card.suit == trump_suit and card.numeric_rank() > highest_rank) or
-            (highest_card.suit == lead_suit and card.numeric_rank() >= highest_rank)):
-            highest_rank = card.numeric_rank()
-            highest_card = card
-    return highest_card
-
-# looks through the list of cards and returns the first card that would win this trick
-# returns None if no winning card is found
-def GetFirstWinningCard(trick_cards, trump_suit, cards: list):
-    for card in cards:
-        new_trick = Deck()
-        new_trick.cards = [x for x in trick_cards.cards]
-        new_trick.add(card)
-        if GetWinningCard(new_trick, trump_suit) == card:
-            return card
-    return None
-    
-# looks through the list of cards and returns the first card that would not win this trick
-# returns None if no losing card is found
-def GetFirstLosingCard(trick_cards, trump_suit, cards: list):
-    for card in cards:
-        new_trick = Deck()
-        new_trick.cards = [x for x in trick_cards.cards]
-        new_trick.add(card)
-        if GetWinningCard(new_trick, trump_suit) != card:
-            return card
-    return None
 
 # Takes a list of game records and prints a bunch of stats about the game
 def get_game_stats(game_records: list):
@@ -361,16 +331,24 @@ class TennisPlayer:
 import random
 class RandomTennisPlayer(TennisPlayer):
     def make_backhand_bid(self):
-        return random.choice(self.backhand.cards)
+        if self.role == "leader":
+            return self.backhand.closest_bid_card(3)
+        else:
+            return self.backhand.closest_bid_card(3)
     
     def make_forehand_bid(self):
-        return random.choice(self.forehand.cards)
+        if self.role == "leader":
+            return self.forehand.closest_bid_card(4)
+        else:
+            return self.forehand.closest_bid_card(3)
     
-    def play_backhand(self, trick_cards):
-        return random.choice(self.backhand.cards)
+    def play_backhand(self, trick):
+        legal_moves = trick.get_legal_moves(self.backhand)
+        return random.choice(legal_moves)
         
-    def play_forehand(self, trick_cards):
-        return random.choice(self.forehand.cards)
+    def play_forehand(self, trick):
+        legal_moves = trick.get_legal_moves(self.forehand)
+        return random.choice(legal_moves)
 
 # This Tennis player can be used to let a human play via the command line
 import re, os

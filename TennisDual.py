@@ -10,11 +10,11 @@ from TennisDealers import *
 import scipy.stats
 
 # The two players
-leader = MySecondSmartLeader
-dealer = MyFirstSmartDealer
+leader = RandomTennisPlayer
+dealer = RandomTennisPlayer
 
 # The numer of pairs of rounds to play
-num_rounds = 1000
+num_rounds = 10000
 
 verbose = False
 

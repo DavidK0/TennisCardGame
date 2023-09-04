@@ -279,7 +279,7 @@ class HumanGUIPlayer(Tennis.TennisPlayer):
 
 if __name__ == "__main__":
     random_suit = random.choice(["C", "S", "H", "D"])
-    round_info = Tennis.PlayTennisRound(AgressiveDealer, HumanGUIPlayer, random_suit, False)
+    round_info = Tennis.PlayTennisRound(HumanGUIPlayer, AgressiveDealer, random_suit, False)
     if round_info[1] == 0:
         print("The leader won")
     else:

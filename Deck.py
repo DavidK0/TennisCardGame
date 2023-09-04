@@ -4,6 +4,7 @@ import random
 
 class Card:
     def __init__(self, rank, suit):
+        assert rank, suit
         self.rank = rank
         self.suit = suit
 
@@ -33,6 +34,16 @@ class Deck:
     # creates an empty deck
     def __init__(self):
         self.cards = []
+        
+    # returns the number of cards in the deck
+    def __len__(self):
+        return len(self.cards)
+    
+    def __str__(self):
+        return f"[{', '.join([str(card) for card in self.cards])}]"
+    
+    def __getitem__(self, key):
+        return self.cards[key]
     
     # puts 52 cards in the deck and shuffles it
     def reset(self):
@@ -73,12 +84,6 @@ class Deck:
         elif isinstance(cards, Deck):
             self.cards.extend(cards.cards)
     
-    # returns the number of cards in the deck
-    def __len__(self):
-        return len(self.cards)
-    
-    def __str__(self):
-        return f"[{', '.join([str(card) for card in self.cards])}]"
 
     # returns the card that is closest to the given rank
     # in the case of a tie, the lower cards by rank is chosen
@@ -146,3 +151,9 @@ class Deck:
             if card.suit == suit:
                 suit_count += 1
         return suit_count
+        
+    def copy(self):
+       new_deck = Deck()
+       for card in self.cards:
+           new_deck.add(Card(card.rank, card.suit))
+       return new_deck
