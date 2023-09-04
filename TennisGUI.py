@@ -4,8 +4,6 @@ from Deck import Deck
 from Deck import Card
 
 import Tennis
-from TennisLeaders import *
-from TennisDealers import *
 
 import random
 
@@ -13,14 +11,18 @@ import tkinter
 from PIL import Image, ImageTk  # Importing modules for handling images
 
 cards_images = Image.open("cards.png")  # A sprite map of cards
-card_back =  Image.open("card_back.jpg")  # The back of cards
+#card_back =  Image.open("card_back.jpg")  # The back of cards
 
 # Crop the sprite map of cards into individual cards
 # This creates a map 'card_images' which maps from the string representation of a card to an image
 card_images = {}
-card_size = (cards_images.width // 13, cards_images.height // 4) # The dimensions of each small card image
-example_cards = Deck.Deck()
+
+card_resize_factor = .2
+card_size = (cards_images.width // 13, cards_images.height // 5) # The dimensions of each small card image
+
+example_cards = Deck()
 example_cards.reset()
+
 for row in range(4):
     for col in range(13):
         left, top = col * card_size[0], row * card_size[1]
@@ -32,7 +34,10 @@ for row in range(4):
             index += 13
         
         card_images[str(example_cards.cards[index])] = card_image
-card_images["back"] = card_back.resize(card_size)
+card_images["back"] = card_images["AS"]
+
+for card_key in card_images:
+    card_images[card_key] = card_images[card_key].resize((int(card_size[0] * card_resize_factor), int(card_size[1] * card_resize_factor)))
 
 # This class allows a human play to play Tennis against an AI using a GUI
 class HumanGUIPlayer(Tennis.TennisPlayer):
@@ -77,10 +82,11 @@ class HumanGUIPlayer(Tennis.TennisPlayer):
         label.place(x=0,y=50 + spacing * 5)
     
     # This allows the player to click on some card
-    def wait_for_card_click(self, card_buttons):
+    def wait_for_card_click(self, card_buttons, legal_moves=None):
         # Enable the card buttons
         for button in card_buttons:
-            button.config(state=tkinter.NORMAL)
+            if not legal_moves or button.card_str in [str(card) for card in legal_moves]:
+                button.config(state=tkinter.NORMAL)
 
         # Wait for the player to click on a card button
         while self.selected_card is None:
@@ -111,27 +117,26 @@ class HumanGUIPlayer(Tennis.TennisPlayer):
                 button.destroy()
         self.opponent_win_card_buttons = []
         
-        wins_deck = Deck.Deck()
+        wins_deck = Deck()
         for i in range(self.forehand_wins):
             wins_deck.add(Card("back", ""))
         for i in range(self.backhand_wins):
             wins_deck.add(Card("back", ""))
         
-        opponent_wins_deck = Deck.Deck()
+        opponent_wins_deck = Deck()
         for i in range(self.opponent_forehand_wins):
             opponent_wins_deck.add(Card("back", ""))
         for i in range(self.opponent_backhand_wins):
             opponent_wins_deck.add(Card("back", ""))
             
-        self.win_card_buttons = self.display_deck(wins_deck, 5)
-        self.win_card_buttons = self.display_deck(opponent_wins_deck, 6)
-        
-        
+        deck_frame, self.win_card_buttons = self.display_deck(wins_deck, 5)
+        deck_frame, self.opponent_win_card_buttons = self.display_deck(opponent_wins_deck, 6)
     
     # Returns a card from the backhand
     def make_backhand_bid(self):
         self.backhand.sort_by_rank()
-        self.backhand_card_buttons = self.display_deck(self.backhand, 0, True)
+        deck_frame, self.backhand_card_buttons = self.display_deck(self.backhand, 0, True)
+        deck_frame.grid(column=0, row=5)
         self.display_opponent_both_hands()
         
         return self.wait_for_card_click(self.backhand_card_buttons)
@@ -139,49 +144,56 @@ class HumanGUIPlayer(Tennis.TennisPlayer):
     # Returns a card from the backhand
     def make_forehand_bid(self):
         self.forehand.sort_by_rank()
-        self.forehand_card_buttons = self.display_deck(self.forehand, 1, True)
+        deck_frame, self.forehand_card_buttons = self.display_deck(self.forehand, 1, True)
+        deck_frame.grid(column=0, row=4)
         self.display_opponent_both_hands()
         
-        bid_cards = Deck.Deck()
-        opponent_bid_cards = Deck.Deck()
+        bid_cards = Deck()
+        opponent_bid_cards = Deck()
         bid_cards.add(self.backhand_bid["card"])
         opponent_bid_cards.add(self.opponent_backhand_bid["card"])
-        self.bids_card_buttons = self.display_deck(bid_cards, 4)
-        self.opponent_bids_card_buttons = self.display_deck(opponent_bid_cards, 3)
+        deck_frame, self.bids_card_buttons = self.display_deck(bid_cards, 4)
+        deck_frame.grid(column=0, row=1)
+        deck_frame, self.opponent_bids_card_buttons = self.display_deck(opponent_bid_cards, 3)
+        deck_frame.grid(column=0, row=2)
     
         return self.wait_for_card_click(self.forehand_card_buttons)
     
-    def play_forehand(self, trick_cards):
+    def play_forehand(self, trick):
         self.forehand.sort_by_rank()
-        self.diplay_trick_cards(trick_cards)
+        self.diplay_trick_cards(trick)
         self.display_wins()
         self.display_opponent_both_hands()
-        return self.wait_for_card_click(self.forehand_card_buttons)
+        return self.wait_for_card_click(self.forehand_card_buttons, trick.get_legal_moves(self.forehand))
     
-    def play_backhand(self, trick_cards):
+    def play_backhand(self, trick):
         self.backhand.sort_by_rank()
-        self.diplay_trick_cards(trick_cards)
+        self.diplay_trick_cards(trick)
         self.display_wins()
         self.display_opponent_both_hands()
-        return self.wait_for_card_click(self.backhand_card_buttons)
+        return self.wait_for_card_click(self.backhand_card_buttons, trick.get_legal_moves(self.backhand))
     
     def diplay_trick_cards(self, trick_cards):
         if hasattr(self, "trick_card_buttons"):
             for button in self.trick_card_buttons:
                 button.destroy()
-        self.trick_card_buttons = self.display_deck(trick_cards, 2)
+        deck_frame, self.trick_card_buttons = self.display_deck(trick_cards, 2)
+        deck_frame.grid(column=0, row=3)
         for button in self.bids_card_buttons:
             button.destroy()
         for button in self.opponent_bids_card_buttons:
             button.destroy()
-        bid_cards = Deck.Deck()
-        opponent_bid_cards = Deck.Deck()
+        bid_cards = Deck()
+        opponent_bid_cards = Deck()
         bid_cards.add(self.forehand_bid["card"])
         opponent_bid_cards.add(self.opponent_forehand_bid["card"])
         bid_cards.add(self.backhand_bid["card"])
         opponent_bid_cards.add(self.opponent_backhand_bid["card"])
-        self.bids_card_buttons = self.display_deck(bid_cards, 4)
-        self.opponent_bids_card_buttons = self.display_deck(opponent_bid_cards, 3)
+        
+        deck_frame, self.bids_card_buttons = self.display_deck(bid_cards, 4)
+        deck_frame.grid(column=0, row=1)
+        deck_frame, self.opponent_bids_card_buttons = self.display_deck(opponent_bid_cards, 3)
+        deck_frame.grid(column=0, row=2)
     
     def display_opponent_both_hands(self):
         if hasattr(self, "opponent_both_hands_images"):
@@ -189,7 +201,7 @@ class HumanGUIPlayer(Tennis.TennisPlayer):
                 button.destroy()
         self.opponent_both_hands_images = []
             
-        self.opponent_both_hands_images = self.display_deck(self.opponent_both_hands, 7)
+        deck_frame, self.opponent_both_hands_images = self.display_deck(self.opponent_both_hands, 7)
     
     def get_card_photo(self, card, rotate=False):
         card_image = card_images[str(card)]  # Get the corresponding card image
@@ -249,29 +261,7 @@ class HumanGUIPlayer(Tennis.TennisPlayer):
         window_width = self.root.winfo_width()
         window_height = self.root.winfo_height()
         
-        x = 100
-        if pos == 0:
-            y = window_height - card_size[1]
-        elif pos == 1:
-            y = window_height - card_size[1] * 2
-        elif pos == 2:
-            y = window_height - card_size[1] * 3
-        elif pos == 3:
-            y = window_height - card_size[1] * 4
-        elif pos == 4:
-            y = window_height - card_size[1] * 5
-        elif pos == 5:
-            y = window_height - card_size[1] * 5
-            x += card_size[0]
-        elif pos == 6:
-            y = window_height - card_size[1] * 4
-            x += card_size[0]
-        elif pos == 7:
-            y = window_height - card_size[1] * 6
-        
-        deck_frame.place(x=x, y=y)
-        
-        return cards_objects
+        return deck_frame, cards_objects
 
     # Create a function to handle button clicks
     def card_button_click(self, card):
@@ -279,8 +269,34 @@ class HumanGUIPlayer(Tennis.TennisPlayer):
 
 if __name__ == "__main__":
     random_suit = random.choice(["C", "S", "H", "D"])
-    round_info = Tennis.PlayTennisRound(HumanGUIPlayer, AgressiveDealer, random_suit, False)
+    round_info = Tennis.PlayTennisRound(HumanGUIPlayer, Tennis.RandomTennisPlayer, random_suit, False)
+    
+    leader_bids = round_info[0][0][0]
+    leader_wins = round_info[0][0][1]
+    leader_errors = round_info[0][0][2]
+    
+    dealer_bids = round_info[0][1][0]
+    dealer_wins = round_info[0][1][1]
+    dealer_errors = round_info[0][1][2]
+    
+    
+    def nice_format(num_pair):
+        return [f"{(x):.1f}" for x in num_pair]
+
+    print(f"Results:")
     if round_info[1] == 0:
         print("The leader won")
-    else:
+    elif round_info[1] == 1:
         print("The dealer won")
+    else:
+        print("It was a tie")
+    print()
+    print(f"Leader:")
+    print(f"Bids: {nice_format(leader_bids)}")
+    print(f"Wins: {nice_format(leader_wins)}")
+    print(f"Errors: {nice_format(leader_errors)}")
+    print()
+    print(f"Dealer:")
+    print(f"Bids: {nice_format(dealer_bids)}")
+    print(f"Wins: {nice_format(dealer_wins)}")
+    print(f"Errors: {nice_format(dealer_errors)}")
