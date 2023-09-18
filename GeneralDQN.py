@@ -2,12 +2,12 @@
 # You just need to make the environment and the Q-network
 
 # Standard Library Imports
-import torch, random, math
-from collections import namedtuple, deque
+import torch, random, math, datetime
+from collections import namedtuple
 from itertools import count
 
 # Check if GPU is available and set the device accordingly
-device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
 MODEL_SAVE_PATH = "latest_dqn_model.pth"
 
@@ -17,8 +17,8 @@ class DQN():
     Transition = namedtuple('Transition', ('state', 'action', 'next_state', 'reward'))
     
     def __init__(self, environment, qNetwork, *args, **kwargs):
-        self.env = environment
-        
+        #self.num_episodes = 10
+
         # Initialize the environment
         self.env = environment(*args, **kwargs)
         self.env.reset()
@@ -46,20 +46,28 @@ class DQN():
         # Initialize the replay memory with a capacity of 10,000 transitions
         self.memory = ReplayMemory(10000)
         
-        self.running_rewards = deque(maxlen=100)  # for last 100 episodes
+        self.running_rewards_maxlen = 160
+        self.running_rewards = []
 
     
     # Main training loop to train the Q-network using the Tennis environment
     def train(self):
         # Iterate over each episode
-        num_episodes = 10
-        for i_episode in range(num_episodes):
+        #for i_episode in range(num_episodes):
+        while True:
             # Display the training progress
             if len(self.running_rewards) > 0:
                 avg_reward = sum(self.running_rewards) / len(self.running_rewards)
             else:
                 avg_reward = 0
-            print(f"Progress: {(i_episode+1)/num_episodes:.1%}, Reward: {avg_reward:.2f}".ljust(30))
+
+            if len(self.running_rewards) >= self.running_rewards_maxlen:
+                self.running_rewards = []
+                #print(f"Progress: {(i_episode+1)/num_episodes:.1%}, Reward: {avg_reward:.2f}".ljust(30))
+                
+                current_datetime = datetime.datetime.now()
+                formatted_datetime = current_datetime.strftime("%Y-%m-%d %H:%M:%S")
+                print(f"{formatted_datetime}, Reward: {avg_reward:.2f}".ljust(30))
             
             # Reset the environment and initialize variables
             state = self.env.reset()
@@ -114,8 +122,8 @@ class DQN():
         # Create a mask of non-final states (states that are not terminal)
         non_final_mask = torch.tensor(tuple(map(lambda s: s is not None, batch.next_state)), device=device, dtype=torch.bool)
         non_final_next_states = torch.cat([s for s in batch.next_state if s is not None])
-        state_batch = torch.cat(batch.state, dim=0)
-        action_batch = torch.cat(batch.action)
+        state_batch = torch.cat(batch.state, dim=0).to(device)
+        action_batch = torch.cat(batch.action).to(device)
         reward_batch = torch.tensor(batch.reward, device=device, dtype=torch.float32)
 
         # Compute the Q-values for the current states and actions

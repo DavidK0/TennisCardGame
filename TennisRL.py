@@ -7,6 +7,8 @@ import torch
 from Tennis import TennisEnv #  The environment in which the RL agent interacts.
 from GeneralDQN import DQN
 
+device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+
 class TennisLeaderQNetwork(torch.nn.Module):
     """
     A Deep Q-Network (DQN) model for the Tennis card game.
@@ -48,6 +50,7 @@ class TennisLeaderQNetwork(torch.nn.Module):
         - torch.Tensor: The Q-values for each possible action.
         """
         # Mask out the dealer's hand information
+        state = state.to(device)
         start = 2 * 13 * 5
         end = 4 * 13 * 5
         state = torch.cat((state[..., :start], state[..., end:]), dim=-1)
@@ -99,6 +102,7 @@ class TennisDealerQNetwork(torch.nn.Module):
         - torch.Tensor: The Q-values for each possible action.
         """
         # Mask out the leader's hand information
+        state = state.to(device)
         start = 2 * 13 * 5
         state = state[..., start:]
         
@@ -115,8 +119,6 @@ class TennisDealerQNetwork(torch.nn.Module):
         x = torch.nn.functional.relu(self.fc3(x))
 
         return self.out(x)
-
-
 
 if __name__ == "__main__":
     DQN = DQN(TennisEnv, TennisLeaderQNetwork, trump_suit=None)
