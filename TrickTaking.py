@@ -17,6 +17,9 @@ class Trick():
     def __str__(self):
         cards_str = ",".join([str(card) for card in self.cards.cards])
         return f"[{self.trump_suit}] {cards_str} -> {str(self.winning_card)}"
+        
+    def __len__(self):
+        return len(self.cards)
     
     def add_card(self, card):
         # Set lead suit

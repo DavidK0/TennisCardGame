@@ -29,6 +29,18 @@ class Card:
             return 11
         else:
             return int(self.rank)
+            
+    def get_bid_value(self):
+        rank = self.numeric_rank()
+        if rank == 13:
+            return 0
+        elif rank == 14:
+            return 1
+        else:
+            return rank
+        
+    def copy(self):
+        return Card(self.rank, self.suit)
 
 class Deck:
     # creates an empty deck

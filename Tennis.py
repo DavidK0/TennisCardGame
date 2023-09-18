@@ -1,181 +1,403 @@
-# This is an implementation of Tennis (https://etgdesign.com/games/tennis/)
+# This is an implementation of the card game Tennis (https://etgdesign.com/games/tennis/).
+# It is designed to be an environment playable by a reinforcement learning model.
 
-from Deck import Deck
-from Deck import Card
+# Standard library imports
+import random
+
+# Third-party imports
+import torch
+import numpy
+
+# Local imports
+from Deck import Deck, Card
 from TrickTaking import Trick
-import copy
 
-# play one tennis round
-# player1 will be the leader, player2 is the dealer
-# trump_suit is one of the suits in Deck.py
-def PlayTennisRound(leader: type, dealer: type, trump_suit, verbose=False):
-    # Initiate both players
-    leader = leader("leader", trump_suit)
-    dealer = dealer("dealer", trump_suit)
+class TennisEnv:
+    """
+    TennisEnv represents the environment for the Tennis card game. 
+    It is designed to be compatible with reinforcement learning algorithms.
     
-    # Keep a record of all the moves made
-    # The record is simply a list of 52 cards in the order they were played
-    game_record = []
+    Attributes:
+        trump_suit (str): The suit that is considered as trump for the current game.
+        reward (int): The reward value for the current state of the game.
+        done (bool): Flag indicating if the current game is finished.
+        game_record (list): A record of all actions taken during the current game.
+        deck (Deck): The deck of cards used in the game.
+        trick_number (int): The current trick number in the game.
+        current_trick (Trick): The current trick being played.
+        action_space (list): List of all possible cards that can be played.
+    """
     
-    deck = Deck() # create an empty deck
-    deck.reset() # put 52 cards in
-    deck.shuffle() # shuffle the deck
-    
-    # Deal 13 cards to each player's backhand
-    for player in [leader, dealer]:
-        player.backhand = Deck()
-        player.backhand.add(deck.draw(13))
-        for card in player.backhand.cards:
-            player.opponent_both_hands.play(card)
-    
-    # Print the backhands
-    if verbose:
-        print(f"Trump suit: {trump_suit}".ljust(30))
-        leader.backhand.sort_by_rank()
-        dealer.backhand.sort_by_rank()
-        print(f"Player 1 backhand: {leader.backhand}")
-        print(f"Player 2 backhand: {dealer.backhand}")
-    
-    # the value of cards during a bid is different than during a trick
-    def get_bid_value(card: Card):
-        rank = card.numeric_rank()
-        if rank == 13:
-            return 0
-        elif rank == 14:
-            return 1
-        else:
-            return rank
-    
-    # Place backhand bids
-    for player in [leader, dealer]:
-        card = player.make_backhand_bid() # get the bid card
+    def __init__(self, trump_suit, rewarded_player="leader"):
+        """
+        Initialize the Tennis environment.
         
-        player.backhand_bid["card"] = player.backhand.play(card) # set the bid card
-        player.backhand_bid["value"] = get_bid_value(player.backhand_bid["card"]) # set the bid value
+        Args:
+            trump_suit (str): The suit that is considered as trump for the current game.
+            rewarded_player (str): Controls which player (leader or dealer) defines the reward for the environment.
+                                   Must be either "leader" or "dealer".
         
-        game_record.append(card) # Update the game record
-    
-    # Revealed the backhand bids
-    leader.opponent_both_hands.play(dealer.backhand_bid["card"])
-    dealer.opponent_both_hands.play(leader.backhand_bid["card"])
-    for player in [leader, dealer]:
-        player.reveal_backhand_bids(leader.backhand_bid, dealer.backhand_bid)
-    
-    # Deal 13 cards to each player's forehand
-    for player in [leader, dealer]:
-        player.forehand = Deck()
-        player.forehand.add(deck.draw(13))
-        for card in player.forehand.cards:
-            player.opponent_both_hands.play(card)
-    
-    # Place forehand bids
-    for player in [leader, dealer]:
-        card = player.make_forehand_bid() # get the bid card
-        player.forehand_bid["card"] = player.forehand.play(card) # set the bid card
-        player.forehand_bid["value"] = get_bid_value(player.forehand_bid["card"]) # set the bid value
-        game_record.append(card) # Update the game record
-    
-    # Revealed the forehand bids
-    leader.opponent_both_hands.play(dealer.forehand_bid["card"])
-    dealer.opponent_both_hands.play(leader.forehand_bid["card"])
-    for player in [leader, dealer]:
-        player.reveal_forehand_bids(leader.forehand_bid, dealer.forehand_bid)
-    
-    if verbose:
-        leader.forehand.sort_by_rank()
-        dealer.forehand.sort_by_rank()
-        print(f"Player 1 forehand: {leader.forehand}")
-        print(f"Player 2 forehand: {dealer.forehand}")
-        print(f"Player 1 bids: [{leader.forehand_bid['card']}, {leader.backhand_bid['card']}]")
-        print(f"Player 2 bids: [{dealer.forehand_bid['card']}, {dealer.backhand_bid['card']}]")
-    
-    # Play 12 tricks
-    for trick_number in range(1, 13):
-        trick = Trick(trump_suit)
+        Raises:
+            AssertionError: If the rewarded_player is not "leader" or "dealer".
+        """
+        # Ensure the rewarded player is either "leader" or "dealer"
+        assert(rewarded_player in ["leader", "dealer"]), "rewarded_player must be either 'leader' or 'dealer'"
         
-        # Play four cards
-        # Each time a card is played four actions happen
-        # The card is removed from the players hand, the opponent is informed,
-        #   trick_cards is updated, and the game_record is update
+        # Initialize game attributes
+        self.trump_suit = trump_suit
+        self.reward = 0
+        self.done = False
+        self.game_record = []
+        self.trick_number = 0
+        self.rewarded_player = rewarded_player
         
-        legal_moves = trick.get_legal_moves(leader.forehand).cards
-        played_card = leader.forehand.play(leader.play_forehand(trick))
-        assert(played_card in legal_moves)
-        dealer.opponent_both_hands.play(played_card)
-        trick.add_card(played_card)
-        game_record.append(played_card)
+        # Initialize the deck and the current trick
+        self.deck = Deck()
+        self.current_trick = Trick(self.trump_suit)  # Non-trump round
         
-        legal_moves = trick.get_legal_moves(dealer.forehand).cards
-        played_card = dealer.forehand.play(dealer.play_forehand(trick))
-        assert(played_card in legal_moves)
-        leader.opponent_both_hands.play(played_card)
-        trick.add_card(played_card)
-        game_record.append(played_card)
+        # Define the action space based on a reference deck
+        reference_deck = Deck()
+        reference_deck.reset()
+        self.action_space = reference_deck.cards  # List of all possible cards that can be played
         
-        legal_moves = trick.get_legal_moves(leader.backhand).cards
-        played_card = leader.backhand.play(leader.play_backhand(trick))
-        assert(played_card in legal_moves)
-        dealer.opponent_both_hands.play(played_card)
-        trick.add_card(played_card)
-        game_record.append(played_card)
-        
-        legal_moves = trick.get_legal_moves(dealer.backhand).cards
-        played_card = dealer.backhand.play(dealer.play_backhand(trick))
-        assert(played_card in legal_moves)
-        trick.add_card(played_card)
-        leader.opponent_both_hands.play(played_card)
-        game_record.append(played_card)
-        
-        # give one win depending on the highest card
-        if trick.winning_index == 0:
-            leader.forehand_wins += 1
-            dealer.opponent_forehand_wins+= 1
-        elif trick.winning_index == 1:
-            dealer.forehand_wins += 1
-            leader.opponent_forehand_wins += 1
-        elif trick.winning_index == 2:
-            leader.backhand_wins += 1
-            dealer.opponent_backhand_wins += 1
-        elif trick.winning_index == 3:
-            dealer.backhand_wins += 1
-            leader.opponent_backhand_wins += 1
-        
-        if verbose:
-            print(f"Trick {trick_number}: {trick}")
-    
-    ## Prepare information to be returned ##
-    
-    # Get bids, wins, and errors
-    player_infos = []
-    for player in [leader, dealer]:
-        player_bid_info = [player.forehand_bid["value"], player.backhand_bid["value"]]
-        player_win_info = [player.forehand_wins, player.backhand_wins]
-        player_forehand_error = abs(player.forehand_bid["value"] - player.forehand_wins)
-        player_backhand_error = abs(player.backhand_bid["value"] - player.backhand_wins)
-        player_error_info = [player_forehand_error, player_backhand_error]
-        player_infos.append((player_bid_info, player_win_info, player_error_info))
+        # Define the observation space
+        self.observation_space = {
+            'hands': {
+                'shape': (52, 5),
+                'min': [0] * 5,
+                'max': [1, 1, 1, 1, 14]
+            },
+            'current_trick': {
+                'shape': (4, 5),
+                'min': [0] * 5,
+                'max': [1, 1, 1, 1, 14]
+            },
+            'bids': {
+                'shape': (4, 5),
+                'min': [0] * 5,
+                'max': [1, 1, 1, 1, 14]
+            },
+            'additional_info': {
+                'shape': (3,),
+                'min': [0, 0, 0],
+                'max': [13, 13, 12]
+            }
+        }
 
-    # Find round winner
-    p1_total_error = player_infos[0][2][0] + player_infos[0][2][1]
-    p2_total_error = player_infos[1][2][0] + player_infos[1][2][1]
-    if p1_total_error < p2_total_error:
-        winner = 0
-    elif p1_total_error > p2_total_error:
-        winner = 1
-    else:
-        winner = -1
+    def reset(self):
+        """
+        Reset the Tennis environment to its initial state.
+        
+        This method initializes new players, resets the game state, shuffles the deck, 
+        and deals cards to the players' backhands. It then returns the current state of the game.
+        
+        Returns:
+            torch.Tensor: The current state of the game after reset.
+        """
+        # Initialize new players for the game
+        self.leader = TennisPlayer("leader", self.trump_suit)
+        self.dealer = TennisPlayer("dealer", self.trump_suit)
+        
+        # Reset game-related variables
+        self.game_record = []
+        self.done = False
+        self.reward = 0
+        self.trick_number = 0
+        
+        # Reset and shuffle the deck of cards
+        self.deck.reset()
+        self.deck.shuffle()
+        
+        # Deal 13 cards to each player's backhand and update the opponent's view of the hands
+        for player in [self.leader, self.dealer]:
+            player.backhand.add(self.deck.draw(13))
+            for card in player.backhand.cards:
+                player.opponent_both_hands.play(card)
+        
+        # Return the current state of the game
+        return self.get_current_state()
+    
+    def step(self, action):
+        self.step_helper(action)
+        return self.random_step()
+        
+    def step_helper(self, action):
+        """
+        Take a step in the Tennis environment based on the provided action.
+        
+        This method simulates the game's progression based on the action taken by the agent.
+        It handles various game phases, such as bidding and playing cards, and updates the game state.
+        
+        Args:
+            action (int): The action index representing the card to be played or bid.
+        
+        Returns:
+            tuple: A tuple containing:
+                - torch.Tensor: The next state of the game.
+                - float: The reward obtained from taking the action.
+                - bool: A flag indicating if the game is done.
+                - dict: Additional information about the step (e.g., reason for termination).
+        """
+        
+        # Get the card corresponding to the action
+        played_card = self.action_space[action]
+        self.game_record.append(played_card)
+        
+        # Sort all the cards in the players' hands
+        self.leader.backhand.sort_by_rank()
+        self.dealer.backhand.sort_by_rank()
+        self.leader.forehand.sort_by_rank()
+        self.dealer.forehand.sort_by_rank()
+        
+        # Check if the played card is a legal move
+        if played_card not in self.get_legal_moves():
+            # If illegal move, penalize the agent and end the game
+            self.done = True
+            return self.observation_space, -10, self.done, {"reason": "illegal_move"}
+        
+        if self.leader.backhand_bid["card"] == None: # Leader forehand bid
+            self.leader.backhand_bid["card"] = self.leader.backhand.play(played_card)
+            self.leader.backhand_bid["value"] = self.leader.backhand_bid["card"].get_bid_value()
+        elif self.dealer.backhand_bid["card"] == None: # Dealer forehand bid
+            self.dealer.backhand_bid["card"] = self.dealer.backhand.play(played_card)
+            self.dealer.backhand_bid["value"] = self.dealer.backhand_bid["card"].get_bid_value()
+              
+            # Revealed the backhand bids
+            self.leader.opponent_both_hands.play(self.dealer.backhand_bid["card"])
+            self.dealer.opponent_both_hands.play(self.leader.backhand_bid["card"])
+            for player in [self.leader, self.dealer]:
+                player.reveal_backhand_bids(self.leader.backhand_bid, self.dealer.backhand_bid)
+                
+            # Deal 13 cards to each player's forehand
+            for player in [self.leader, self.dealer]:
+                player.forehand = Deck()
+                player.forehand.add(self.deck.draw(13))
+                for card in player.forehand.cards:
+                    player.opponent_both_hands.play(card)
+        elif self.leader.forehand_bid["card"] == None: # Leader backhand bid
+            self.leader.forehand_bid["card"] = self.leader.forehand.play(played_card)
+            self.leader.forehand_bid["value"] = self.leader.forehand_bid["card"].get_bid_value()
+        elif self.dealer.forehand_bid["card"] == None: # Dealer backhand bid
+            self.dealer.forehand_bid["card"] = self.dealer.forehand.play(played_card)
+            self.dealer.forehand_bid["value"] = self.dealer.forehand_bid["card"].get_bid_value()
             
-    if verbose:
-        print(f"Leader score: [{leader.forehand_bid['value']}, {leader.backhand_bid['value']}] - [{leader.forehand_wins}, {leader.backhand_wins}] = [{player_infos[0][2][0]}, {player_infos[0][2][1]}] -> {p1_total_error}  {type(leader).__name__}")
-        print(f"Dealer score: [{dealer.forehand_bid['value']}, {dealer.backhand_bid['value']}] - [{dealer.forehand_wins}, {dealer.backhand_wins}] = [{player_infos[1][2][0]}, {player_infos[1][2][1]}] -> {p2_total_error}  {type(dealer).__name__}")
-        print()
+            # Revealed the forehand bids
+            self.leader.opponent_both_hands.play(self.dealer.forehand_bid["card"])
+            self.dealer.opponent_both_hands.play(self.leader.forehand_bid["card"])
+            for player in [self.leader, self.dealer]:
+                player.reveal_forehand_bids(self.leader.forehand_bid, self.dealer.forehand_bid)
+        else:
+            # First card
+            if len(self.current_trick) == 0:
+                self.leader.forehand.play(played_card)
+                self.dealer.opponent_both_hands.play(played_card)
+                self.current_trick.add_card(played_card)
+            
+            # Second card
+            elif len(self.current_trick) == 1:
+                self.dealer.forehand.play(played_card)
+                self.leader.opponent_both_hands.play(played_card)
+                self.current_trick.add_card(played_card)
+            
+            # Third card
+            elif len(self.current_trick) == 2:
+                self.leader.backhand.play(played_card)
+                self.dealer.opponent_both_hands.play(played_card)
+                self.current_trick.add_card(played_card)
+            
+            # Fourth card
+            elif len(self.current_trick) == 3:
+                self.dealer.backhand.play(played_card)
+                self.current_trick.add_card(played_card)
+                self.leader.opponent_both_hands.play(played_card)
+                
+                # Find Trick winner
+                if self.current_trick.winning_index == 0:
+                    self.leader.forehand_wins += 1
+                    self.dealer.opponent_forehand_wins+= 1
+                elif self.current_trick.winning_index == 1:
+                    self.dealer.forehand_wins += 1
+                    self.leader.opponent_forehand_wins += 1
+                elif self.current_trick.winning_index == 2:
+                    self.leader.backhand_wins += 1
+                    self.dealer.opponent_backhand_wins += 1
+                elif self.current_trick.winning_index == 3:
+                    self.dealer.backhand_wins += 1
+                    self.leader.opponent_backhand_wins += 1
+                
+                # Reset the trick
+                self.current_trick = Trick(self.trump_suit)
+                
+                # Check if the game is over
+                if len(self.leader.forehand) == 0:
+                    self.done = True
+        
+        if self.dealer.forehand_bid["card"] != None:
+            # leader score
+            leader_forehand_bid_difference = abs(self.leader.forehand_bid["value"] - self.leader.forehand_wins)
+            leader_backhand_bid_difference = abs(self.leader.backhand_bid["value"] - self.leader.backhand_wins)
+            leader_bid_difference = leader_forehand_bid_difference + leader_backhand_bid_difference
+            
+            # dealer score
+            dealer_forehand_bid_difference = abs(self.dealer.forehand_bid["value"] - self.dealer.forehand_wins)
+            dealer_backhand_bid_difference = abs(self.dealer.backhand_bid["value"] - self.dealer.backhand_wins)
+            dealer_bid_difference = dealer_forehand_bid_difference + dealer_backhand_bid_difference
+            
+            if self.rewarded_player == "leader":
+                self.reward = dealer_bid_difference-leader_bid_difference
+            else:
+                self.reward = leader_bid_difference-dealer_bid_difference
+            self.reward /= 24 # normalize the reward
+        else:
+            self.reward = float('-inf')
+        
+        return self.get_current_state(), self.reward, self.done, {}
+    
+    def render(self):
+        """
+        Render the current state of the Tennis game.
+        
+        This method displays the current game state, including the trump suit, players' hands, bids, 
+        the current trick, and the scores. It provides a visual representation of the game's progress.
+        """
+        # Display the trump suit
+        print(f"Trump suit: {self.trump_suit}".ljust(30))
+        
+        # Display the backhands of both players
+        print(f"Player 1 backhand: {self.leader.backhand}")
+        print(f"Player 2 backhand: {self.dealer.backhand}")
+        
+        # Display the forehands of both players
+        print(f"Player 1 forehand: {self.leader.forehand}")
+        print(f"Player 2 forehand: {self.dealer.forehand}")
+        
+        # Display the bids made by both players
+        print(f"Player 1 bids: [{self.leader.forehand_bid['card']}, {self.leader.backhand_bid['card']}]")
+        print(f"Player 2 bids: [{self.dealer.forehand_bid['card']}, {self.dealer.backhand_bid['card']}]")
+        
+        # Display the current trick
+        print(f"Current trick: {self.current_trick}")
+        
+        # Display the scores of both players
+        # Calculate the total error for each player and display it
+        if self.dealer.forehand_bid["card"] != None:
+            p1_total_error = abs(self.leader.forehand_bid["value"] - self.leader.forehand_wins) + \
+                             abs(self.leader.backhand_bid["value"] - self.leader.backhand_wins)
+            p2_total_error = abs(self.dealer.forehand_bid["value"] - self.dealer.forehand_wins) + \
+                             abs(self.dealer.backhand_bid["value"] - self.dealer.backhand_wins)
+            print(f"Leader score: [{self.leader.forehand_bid['value']}, {self.leader.backhand_bid['value']}] - "
+                  f"[{self.leader.forehand_wins}, {self.leader.backhand_wins}] = {p1_total_error}")
+            print(f"Dealer score: [{self.dealer.forehand_bid['value']}, {self.dealer.backhand_bid['value']}] - "
+                  f"[{self.dealer.forehand_wins}, {self.dealer.backhand_wins}] = {p2_total_error}")
+    
+    def seed(self, seed_value=None):
+        """
+        Set the seed for random number generators.
+        
+        This method sets the seed for both Python's built-in random module and numpy's random module.
+        It ensures reproducibility in the game's random events.
+        
+        Args:
+            seed_value (int, optional): The value to use as the seed. If None, the RNGs will be seeded randomly.
+        
+        Returns:
+            list: A list containing the provided seed value.
+        """
+        random.seed(seed_value)
+        np.random.seed(seed_value)  # Seed numpy's random number generator
+        # If you use other random number generators, set their seeds here too
+        return [seed_value]
 
-    round_info = (player_infos, winner)
-    return round_info
+    
+    def get_current_state(self):  
+        def get_card_tensor(card):
+            if not card:
+                return torch.zeros(5)  
+            suit_vector = torch.zeros(4)
+            suit_mapping = {"C": 0, "D": 1, "H": 2, "S": 3}
+            if card.suit in suit_mapping:
+                suit_vector[suit_mapping[card.suit]] = 1
+            
+            return torch.cat((suit_vector, torch.tensor([card.numeric_rank()])))
 
-# Takes a list of game records and prints a bunch of stats about the game
-def get_game_stats(game_records: list):
-    pass
+        # Initialize an empty list to store all tensors
+        state_tensors = []
+
+        # Process hands
+        for hand in [self.leader.forehand, self.leader.backhand, self.dealer.forehand, self.dealer.backhand]:
+            tensor = torch.zeros(13, 5)  # Create a 13x5 tensor filled with zeros
+            for idx, card in enumerate(hand.cards):
+                tensor[idx] = get_card_tensor(card).clone().detach()
+            state_tensors.append(tensor)
+
+        # Process bids
+        for bid in [
+           self.leader.forehand_bid,
+           self.leader.backhand_bid,
+           self.dealer.forehand_bid,
+           self.dealer.backhand_bid
+        ]:
+            value = bid.get("value", 0)
+            if value == None:
+                value = 0 # This value is equal to an actual bid of zero
+            else:
+                # Normalize the bid
+                value = value / 12
+            card_tensor = get_card_tensor(bid.get("card"))
+            state_tensors.append(card_tensor)
+
+        # Process current trick
+        trick_list = [get_card_tensor(card) for card in self.current_trick.cards]
+        while len(trick_list) < 4:
+            trick_list.append(torch.zeros(5))
+        state_tensors.extend(trick_list)
+        
+        # Process wins
+        wins_info = torch.tensor([self.leader.forehand_wins, self.leader.backhand_wins])
+        state_tensors.append(wins_info)
+
+        # Flatten and concatenate all tensors to form the final state tensor
+        state_tensor = torch.cat([tensor.flatten() for tensor in state_tensors])
+
+        return state_tensor
+    
+    def get_legal_moves(self):
+        """
+        Determine the legal moves available to the current player.
+        
+        This method checks the current game state and determines which cards can be legally played 
+        or bid by the current player. It considers the game phase (bidding or playing) and the current trick.
+        
+        Returns:
+            list: A list of legal moves available to the current player.
+        """
+        # Check if the leader has made their forehand bid
+        if self.leader.backhand_bid["card"] == None:
+            return self.leader.backhand
+        # Check if the dealer has made their forehand bid
+        elif self.dealer.backhand_bid["card"] == None:
+            return self.dealer.backhand
+        # Check if the leader has made their backhand bid
+        elif self.leader.forehand_bid["card"] == None:
+            return self.leader.forehand
+        # Check if the dealer has made their backhand bid
+        elif self.dealer.forehand_bid["card"] == None:
+            return self.dealer.forehand
+        else:
+            # Determine legal moves based on the number of cards played in the current trick
+            if len(self.current_trick) == 0:
+                return self.current_trick.get_legal_moves(self.leader.forehand)
+            elif len(self.current_trick) == 1:
+                return self.current_trick.get_legal_moves(self.dealer.forehand)
+            elif len(self.current_trick) == 2:
+                return self.current_trick.get_legal_moves(self.leader.backhand)
+            elif len(self.current_trick) == 3:
+                return self.current_trick.get_legal_moves(self.dealer.backhand)
+    
+    # Plays a random moe
+    def random_step(self):
+        return self.step_helper(self.action_space.index(random.choice(self.get_legal_moves())))
+    
 
 # This class is the base class for Tennis players.
 class TennisPlayer:
@@ -214,14 +436,6 @@ class TennisPlayer:
         # One int for each hand
         self.opponent_forehand_wins = 0
         self.opponent_backhand_wins = 0
-        
-    # Returns a card from the backhand
-    def make_backhand_bid(self):
-        raise NotImplementedError("Subclasses must implement the make_backhand_bid method")
-    
-    # Returns a card from the forehand
-    def make_forehand_bid(self):
-        raise NotImplementedError("Subclasses must implement the make_forehand_bid method")
     
     # Reveal the forehand bids
     def reveal_forehand_bids(self, leader_forehand_bid, dealer_forehand_bid):
@@ -240,112 +454,3 @@ class TennisPlayer:
         else:
             self.backhand_bid = dealer_backhand_bid
             self.opponent_backhand_bid = leader_backhand_bid
-            
-        
-    # Returns a card
-    def play_forehand(self, trick_cards):
-        raise NotImplementedError("Subclasses must implement the play_forehand method")
-        
-    # Returns a card
-    def play_backhand(self, trick_cards):
-        raise NotImplementedError("Subclasses must implement the play_backhand method")
-        
-
-# This Tennis player always picks a random card
-import random
-class RandomTennisPlayer(TennisPlayer):
-    def make_backhand_bid(self):
-        if self.role == "leader":
-            return self.backhand.closest_bid_card(3)
-        else:
-            return self.backhand.closest_bid_card(3)
-    
-    def make_forehand_bid(self):
-        if self.role == "leader":
-            return self.forehand.closest_bid_card(4)
-        else:
-            return self.forehand.closest_bid_card(3)
-    
-    def play_backhand(self, trick):
-        legal_moves = trick.get_legal_moves(self.backhand)
-        return random.choice(legal_moves)
-        
-    def play_forehand(self, trick):
-        legal_moves = trick.get_legal_moves(self.forehand)
-        return random.choice(legal_moves)
-
-# This Tennis player can be used to let a human play via the command line
-import re, os
-class HumanCommandLinePlayer(TennisPlayer):
-    def validate_playing_card(self,input_str):
-        pattern = r'^([2-9]|10|[JQKA])([CDHS])$'
-        match = re.match(pattern, input_str)
-        if match:
-            rank, suit = match.groups()
-            return rank, suit
-        else:
-            return None, None
-    
-    def make_backhand_bid(self, trump_suit):
-        os.system('cls')
-        print(f"You are playing as the {self.role}")
-        print(f"Your backhand: {self.backhand}")
-        print(f"Trump suit: {trump_suit}")
-        card = None
-        while not self.backhand.has_card(card):
-            card_str = input("Enter a card for your backhand bid: ").upper()
-            rank, suit = self.validate_playing_card(card_str)
-            if rank and suit:
-                card = Card(rank, suit)
-        return card
-    
-    # doesn't work
-    def make_forehand_bid(self, trump_suit, opponent_revealed_info):
-        os.system('cls')
-        print(f"You are playing as the {self.role}")
-        print(f"\nYour forehand: {self.forehand}")
-        print(f"Your backhand: {self.backhand}")
-        print()
-        print(f"Your backhand bid: {self.backhand_bid_card}")
-        print(f"Opponent's backhand bid: {opponent_revealed_info[1]['card']}")
-        print()
-        print(f"Trump suit: {trump_suit}")
-        card = None
-        while not self.forehand.has_card(card):
-            card_str = input("Enter a card for your forehand bid: ").upper()
-            rank, suit = self.validate_playing_card(card_str)
-            if rank and suit:
-                card = Card(rank, suit)
-        return card
-    
-    def play(self, trick_cards, trump_suit, opponent_revealed_info):
-        os.system('cls')
-        print(f"You are playing as the {self.role}")
-        print(f"\nYour forehand: {self.forehand}")
-        print(f"Your backhand: {self.backhand}")
-        print()
-        print(f"Your bids: {self.forehand_bid_card}, {self.backhand_bid_card}")
-        print(f"Opponent's bids: {opponent_revealed_info[0]['card']}, {opponent_revealed_info[1]['card']}")
-        print()
-        print(f"Trump suit: {trump_suit}")
-        print(f"Trick: {trick_cards}")
-        card = None
-        if len(trick_cards)<2: # return a forehand card
-            while not self.forehand.has_card(card):
-                card_str = input("Play a card form your forehand: ").upper()
-                rank, suit = self.validate_playing_card(card_str)
-                if rank and suit:
-                    card = Card(rank, suit)
-            return card
-        else: # return a backhand card
-            while not self.backhand.has_card(card):
-                card_str = input("Play a card form your backhand: ").upper()
-                rank, suit = self.validate_playing_card(card_str)
-                if rank and suit:
-                    card = Card(rank, suit)
-            return card
-    
-    def show(self, trick_cards):
-        os.system('cls')
-        print(f"The last card played was the {trick_cards.cards[-1]}")
-        input("Enter anything to continue")
