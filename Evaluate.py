@@ -1,3 +1,4 @@
+import sys
 from Tennis import TennisEnv
 from TennisRL import TennisLeaderQNetwork
 from GeneralDQN import DQN
@@ -6,7 +7,12 @@ from GeneralDQN import DQN
 DQN = DQN(TennisEnv, TennisLeaderQNetwork, trump_suit=None)
 
 num_games = 1
+
 total_reward = 0  # Initialize the total reward to zero
+
+# Load a model if it is provided
+if len(sys.argv) > 1:
+    DQN.load_model(sys.argv[1])
 
 # Play many games
 for i in range(num_games):

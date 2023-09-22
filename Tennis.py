@@ -249,7 +249,7 @@ class TennisEnv:
                 self.reward = leader_bid_difference-dealer_bid_difference
             self.reward /= 24 # normalize the reward
         else:
-            self.reward = float('-inf')
+            self.reward = -24
         
         return self.get_current_state(), self.reward, self.done, {}
     

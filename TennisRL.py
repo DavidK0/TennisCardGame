@@ -1,5 +1,8 @@
 # This script contains a Q-network for training a DQN to play Tennis.
 
+# Standard Library Imports
+import sys
+
 # Third-Party Library Imports
 import torch
 
@@ -122,7 +125,9 @@ class TennisDealerQNetwork(torch.nn.Module):
 
 if __name__ == "__main__":
     DQN = DQN(TennisEnv, TennisLeaderQNetwork, trump_suit=None)
-    
-    DQN.train()
 
-    print('Complete')
+    # Load a model if it is provided
+    if len(sys.argv) > 1:
+        DQN.load_model(sys.argv[1])
+
+    DQN.train()
