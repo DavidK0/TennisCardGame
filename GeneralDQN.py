@@ -2,14 +2,12 @@
 # You just need to make the environment and the Q-network
 
 # Standard Library Imports
-import torch, random, math, datetime
-from collections import namedtuple
+import torch, random, math, datetime, re
+from collections import namedtuple, deque
 from itertools import count
 
 # Check if GPU is available and set the device accordingly
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
-
-MODEL_SAVE_PATH = "latest_dqn_model.pth"
 
 class DQN():
     # Define a named tuple 'Transition' to represent a single transition in our environment.
@@ -46,8 +44,10 @@ class DQN():
         # Initialize the replay memory with a capacity of 10,000 transitions
         self.memory = ReplayMemory(10000)
         
-        self.running_rewards_maxlen = 160
+        self.running_maxlen = 2500
         self.running_rewards = []
+        self.running_losses = []
+
 
     
     # Main training loop to train the Q-network using the Tennis environment
@@ -56,18 +56,25 @@ class DQN():
         #for i_episode in range(num_episodes):
         while True:
             # Display the training progress
-            if len(self.running_rewards) > 0:
+            if len(self.running_rewards) > 0 and len(self.running_losses) > 0:
                 avg_reward = sum(self.running_rewards) / len(self.running_rewards)
+                avg_loss = sum(self.running_losses) / len(self.running_losses)
             else:
-                avg_reward = 0
+                avg_reward, avg_loss = 0, 0
 
-            if len(self.running_rewards) >= self.running_rewards_maxlen:
+            if len(self.running_rewards) >= self.running_maxlen:
                 self.running_rewards = []
-                #print(f"Progress: {(i_episode+1)/num_episodes:.1%}, Reward: {avg_reward:.2f}".ljust(30))
+                self.running_losses = []
                 
                 current_datetime = datetime.datetime.now()
                 formatted_datetime = current_datetime.strftime("%Y-%m-%d %H:%M:%S")
-                print(f"{formatted_datetime}, Reward: {avg_reward:.2f}".ljust(30))
+                print(f"{formatted_datetime}, Reward: {avg_reward:.2f}, Avg Loss: {avg_loss:.4f}".ljust(30))
+
+                filename_datetime = re.sub(r'[\/:*?"<>|]', '_', formatted_datetime)
+
+                # Save the latest model
+                self.save_model(f"outputs/{filename_datetime}_{avg_reward:.1f}_{avg_loss:.1f}.pth")
+
             
             # Reset the environment and initialize variables
             state = self.env.reset()
@@ -98,10 +105,6 @@ class DQN():
                     break
 
             self.running_rewards.append(reward)
-
-            # Save the latest model after each episode
-            self.save_model(MODEL_SAVE_PATH)
-
         
     def optimize_model(self):
         """
@@ -138,6 +141,9 @@ class DQN():
 
         # Compute the Huber loss between the current and expected Q-values
         loss = torch.nn.functional.smooth_l1_loss(state_action_values, expected_state_action_values.unsqueeze(1))
+
+        # Add loss to running_losses and remove oldest if exceeds maxlen
+        self.running_losses.append(loss.item())
 
         # Backpropagate the loss and optimize the Q-network
         self.optimizer.zero_grad()
