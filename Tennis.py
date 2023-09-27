@@ -28,7 +28,7 @@ class TennisEnv:
         action_space (list): List of all possible cards that can be played.
     """
     
-    def __init__(self, trump_suit, rewarded_player="leader"):
+    def __init__(self, trump_suit, rewarded_player="leader", opponent_model=None):
         """
         Initialize the Tennis environment.
         
@@ -47,6 +47,7 @@ class TennisEnv:
         self.trump_suit = trump_suit
         self.reward = 0
         self.done = False
+        self.winner = None
         self.game_record = []
         self.trick_number = 0
         self.rewarded_player = rewarded_player
@@ -231,6 +232,20 @@ class TennisEnv:
                 # Check if the game is over
                 if len(self.leader.forehand) == 0:
                     self.done = True
+                    if self.rewarded_player == "leader":
+                        if self.reward > 0:
+                            self.winner = "leader"
+                        elif self.reward < 0:
+                            self.winner = "dealer"
+                        else:
+                            self.winner = "draw"
+                    else:
+                        if self.reward > 0:
+                            self.winner = "dealer"
+                        elif self.reward < 0:
+                            self.winner = "leader"
+                        else:
+                            self.winner = "draw"
         
         if self.dealer.forehand_bid["card"] != None:
             # leader score
@@ -355,6 +370,13 @@ class TennisEnv:
         # Process wins
         wins_info = torch.tensor([self.leader.forehand_wins, self.leader.backhand_wins])
         state_tensors.append(wins_info)
+
+        # Trump suit
+        trump_vector = torch.zeros(4)
+        suit_mapping = {"C": 0, "D": 1, "H": 2, "S": 3}
+        if self.trump_suit in suit_mapping:
+            trump_vector [suit_mapping[card.suit]] = 1
+        state_tensors.append(trump_vector)
 
         # Flatten and concatenate all tensors to form the final state tensor
         state_tensor = torch.cat([tensor.flatten() for tensor in state_tensors])

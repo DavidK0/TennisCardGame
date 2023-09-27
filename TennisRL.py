@@ -32,7 +32,7 @@ class TennisLeaderQNetwork(torch.nn.Module):
         super(TennisLeaderQNetwork, self).__init__()
 
         # Modify the input size
-        self.input_size = 2*13*5 + 4*5 + 4*5 + 2
+        self.input_size = 2*13*5 + 4*5 + 4*5 + 2 + 4
 
         # Define the neural network architecture
         self.fc1 = torch.nn.Linear(self.input_size, 512)
@@ -84,7 +84,7 @@ class TennisDealerQNetwork(torch.nn.Module):
         super(TennisDealerQNetwork, self).__init__()
 
         # Modify the input size
-        self.input_size = 2*13*5 + 4*5 + 4*5 + 2
+        self.input_size = 2*13*5 + 4*5 + 4*5 + 2 + 4
 
         # Define the neural network architecture
         self.fc1 = torch.nn.Linear(self.input_size, 512)
@@ -124,7 +124,7 @@ class TennisDealerQNetwork(torch.nn.Module):
         return self.out(x)
 
 if __name__ == "__main__":
-    DQN = DQN(TennisEnv, TennisLeaderQNetwork, trump_suit=None)
+    DQN = DQN(TennisEnv, TennisLeaderQNetwork, trump_suit=None, rewarded_player="leader", opponent_model=TennisDealerQNetwork)
 
     # Load a model if it is provided
     if len(sys.argv) > 1:

@@ -30,6 +30,8 @@ class DQN():
         self.EPS_DECAY = 1000  # Decay rate for epsilon
         self.GRAD_CLIP_MIN = -1
         self.GRAD_CLIP_MAX = 1
+        self.TAU = 0.005  # The factor for soft-updating the target network weights
+
 
         # Initialize the policy and target DQN models
         self.policy_net = qNetwork().to(device)
@@ -44,7 +46,7 @@ class DQN():
         # Initialize the replay memory with a capacity of 10,000 transitions
         self.memory = ReplayMemory(10000)
         
-        self.running_maxlen = 2500
+        self.running_maxlen = 2
         self.running_rewards = []
         self.running_losses = []
 
@@ -100,6 +102,13 @@ class DQN():
                 # Optimize the Q-network based on the stored experiences
                 self.optimize_model()
                 
+                # Soft update of the target network's weights
+                target_net_state_dict = self.target_net.state_dict()
+                policy_net_state_dict = self.policy_net.state_dict()
+                for key in policy_net_state_dict:
+                    target_net_state_dict[key] = policy_net_state_dict[key]*self.TAU + target_net_state_dict[key]*(1-self.TAU)
+                self.target_net.load_state_dict(target_net_state_dict)
+
                 # If the episode is done, stop
                 if done:
                     break
