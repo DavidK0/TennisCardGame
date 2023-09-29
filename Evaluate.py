@@ -1,22 +1,31 @@
 import sys
-from Tennis import TennisEnv
-from TennisRL import TennisLeaderQNetwork
+from TennisEnv import TennisEnv
+from TennisQNet import TennisLeaderQNetwork
+from TennisQNet import TennisDealerQNetwork
 from GeneralDQN import DQN
 
-# Create the DQN agent
-DQN = DQN(TennisEnv, TennisLeaderQNetwork, trump_suit=None)
+# Leader
+leader = DQN(TennisLeaderQNetwork)
+if len(sys.argv) > 1:
+    leader.load_model(sys.argv[1])
+    print("Loading leader model")
 
-num_games = 300
+# Dealer
+dealer = DQN(TennisDealerQNetwork)
+if len(sys.argv) > 2:
+    dealer.load_model(sys.argv[2])
+    print("Loading dealer model")
+
+# Environment
+environment = TennisEnv(leader, dealer, rewarded_player="leader")
+
+num_games = 5000
 
 total_reward = 0  # Initialize the total reward to zero
 
-# Load a model if it is provided
-if len(sys.argv) > 1:
-    DQN.load_model(sys.argv[1])
-
 # Track wins and loses
-games_won = 0
-games_lost = 0
+leader_wins = 0
+dealer_wins = 0
 games_tied = 0
 
 # Play many games
@@ -25,25 +34,35 @@ for i in range(num_games):
     print(f"Progress {(i + 1)/num_games:.1%}", end="\r")
         
     # Reset the environment for a new game
-    DQN.env.reset()
-    
-    while not DQN.env.done:
-        DQN.env.step(DQN.choose_action())  # Leader
+    environment.reset()
+
+    while True:
+        # Leader
+        leader_action = leader.choose_action(environment)
+        environment.step_helper(leader_action)
+        if environment.done:
+            break
+
+        # Dealer
+        dealer_action = dealer.choose_action(environment)
+        environment.step_helper(dealer_action)
+        if environment.done:
+            break
         
-    total_reward += DQN.env.reward # Accumulate the reward
+    total_reward += environment.reward # Accumulate the reward
 
     # Track wins and loses
-    if DQN.env.winner == "leader":
-        games_won += 1
-    elif DQN.env.winner == "dealer":
-        games_lost += 1
+    if environment.winner == "leader":
+        leader_wins += 1
+    elif environment.winner == "dealer":
+        dealer_wins += 1
     else:
         games_tied += 1
 
 # Calculate and print the average reward
 average_reward = total_reward / num_games
-win_rate = games_won / num_games
-lose_rate = games_lost / num_games
+leader_win_rate = leader_wins / num_games
+dealer_win_rate = dealer_wins / num_games
 tie_rate = games_tied / num_games
 print(f"Average error difference over {num_games} games: {12*average_reward:.3f} (positive is good)")
-print(f"Win/lose/tie rate: {win_rate:.1%}/{lose_rate:.1%}/{tie_rate:.1%}")
+print(f"Leader win/dealer win/tie rate: {leader_win_rate:.1%}/{dealer_win_rate:.1%}/{tie_rate:.1%}")

@@ -1,18 +1,23 @@
 # Use this script to play Tennis against a trained agent via the command line.
 
 # Standard Library Imports
-import random, math, re
+import re, sys
 import torch
 
 # Local Library Imports
 from Tennis import TennisEnv #  The environment in which the RL agent interacts.
-from TennisRL import DQNTennis
+from TennisRL import TennisLeaderQNetwork, TennisDealerQNetwork
 from Deck import Card
 
+# Check for usage
+if len(sys.argv) < 2:
+    print("Provide a model (.pt) to play against.")
+    sys.exit()
+
 # Load the trained agent model
-MODEL_LOAD_PATH = 'latest_dqn_tennis_model.pth'
+MODEL_LOAD_PATH = sys.argv[1]
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-policy_net = DQNTennis().to(device)
+policy_net = TennisLeaderQNetwork().to(device)
 policy_net.load_state_dict(torch.load(MODEL_LOAD_PATH))
 policy_net.eval()
 

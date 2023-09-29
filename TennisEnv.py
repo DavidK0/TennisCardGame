@@ -9,8 +9,8 @@ import torch
 import numpy
 
 # Local imports
-from Deck import Deck, Card
-from TrickTaking import Trick
+from card_game_utils.Deck import Deck
+from card_game_utils.TrickTaking import Trick
 
 class TennisEnv:
     """
@@ -28,7 +28,7 @@ class TennisEnv:
         action_space (list): List of all possible cards that can be played.
     """
     
-    def __init__(self, trump_suit, rewarded_player="leader", opponent_model=None):
+    def __init__(self, leader, dealer, rewarded_player="leader"):
         """
         Initialize the Tennis environment.
         
@@ -40,17 +40,14 @@ class TennisEnv:
         Raises:
             AssertionError: If the rewarded_player is not "leader" or "dealer".
         """
+
         # Ensure the rewarded player is either "leader" or "dealer"
         assert(rewarded_player in ["leader", "dealer"]), "rewarded_player must be either 'leader' or 'dealer'"
+        self.rewarded_player = rewarded_player
         
         # Initialize game attributes
-        self.trump_suit = trump_suit
-        self.reward = 0
+        self.trump_suit = random.choice(['C', 'S', 'H', 'D', None])
         self.done = False
-        self.winner = None
-        self.game_record = []
-        self.trick_number = 0
-        self.rewarded_player = rewarded_player
         
         # Initialize the deck and the current trick
         self.deck = Deck()
@@ -60,30 +57,9 @@ class TennisEnv:
         reference_deck = Deck()
         reference_deck.reset()
         self.action_space = reference_deck.cards  # List of all possible cards that can be played
-        
-        # Define the observation space
-        self.observation_space = {
-            'hands': {
-                'shape': (52, 5),
-                'min': [0] * 5,
-                'max': [1, 1, 1, 1, 14]
-            },
-            'current_trick': {
-                'shape': (4, 5),
-                'min': [0] * 5,
-                'max': [1, 1, 1, 1, 14]
-            },
-            'bids': {
-                'shape': (4, 5),
-                'min': [0] * 5,
-                'max': [1, 1, 1, 1, 14]
-            },
-            'additional_info': {
-                'shape': (3,),
-                'min': [0, 0, 0],
-                'max': [13, 13, 12]
-            }
-        }
+
+        self.leader_q_network = leader
+        self.dealer_q_network = dealer
 
     def reset(self):
         """
@@ -104,6 +80,7 @@ class TennisEnv:
         self.done = False
         self.reward = 0
         self.trick_number = 0
+        self.winner = None
         
         # Reset and shuffle the deck of cards
         self.deck.reset()
@@ -115,12 +92,22 @@ class TennisEnv:
             for card in player.backhand.cards:
                 player.opponent_both_hands.play(card)
         
+        if self.rewarded_player == "dealer":
+            self.step_helper(self.leader_q_network.choose_action(self))
+        
         # Return the current state of the game
         return self.get_current_state()
     
     def step(self, action):
-        self.step_helper(action)
-        return self.random_step()
+
+        next_state, reward, done, exit_cond = self.step_helper(action)
+        if self.done:
+            return next_state, reward, done, exit_cond
+
+        if self.rewarded_player == "leader":
+            return self.step_helper(self.dealer_q_network.choose_action(self))
+        else:
+            return self.step_helper(self.leader_q_network.choose_action(self))
         
     def step_helper(self, action):
         """
@@ -151,10 +138,7 @@ class TennisEnv:
         self.dealer.forehand.sort_by_rank()
         
         # Check if the played card is a legal move
-        if played_card not in self.get_legal_moves():
-            # If illegal move, penalize the agent and end the game
-            self.done = True
-            return self.observation_space, -10, self.done, {"reason": "illegal_move"}
+        assert(played_card in self.get_legal_moves())
         
         if self.leader.backhand_bid["card"] == None: # Leader forehand bid
             self.leader.backhand_bid["card"] = self.leader.backhand.play(played_card)
@@ -327,20 +311,20 @@ class TennisEnv:
     def get_current_state(self):  
         def get_card_tensor(card):
             if not card:
-                return torch.zeros(5)  
+                return torch.zeros(4)  
             suit_vector = torch.zeros(4)
             suit_mapping = {"C": 0, "D": 1, "H": 2, "S": 3}
             if card.suit in suit_mapping:
-                suit_vector[suit_mapping[card.suit]] = 1
+                suit_vector[suit_mapping[card.suit]] = card.numeric_rank() / 14
             
-            return torch.cat((suit_vector, torch.tensor([card.numeric_rank()])))
+            return suit_vector
 
         # Initialize an empty list to store all tensors
         state_tensors = []
 
         # Process hands
         for hand in [self.leader.forehand, self.leader.backhand, self.dealer.forehand, self.dealer.backhand]:
-            tensor = torch.zeros(13, 5)  # Create a 13x5 tensor filled with zeros
+            tensor = torch.zeros(13, 4)  # Create a 13x5 tensor filled with zeros
             for idx, card in enumerate(hand.cards):
                 tensor[idx] = get_card_tensor(card).clone().detach()
             state_tensors.append(tensor)
@@ -364,18 +348,18 @@ class TennisEnv:
         # Process current trick
         trick_list = [get_card_tensor(card) for card in self.current_trick.cards]
         while len(trick_list) < 4:
-            trick_list.append(torch.zeros(5))
+            trick_list.append(torch.zeros(4))
         state_tensors.extend(trick_list)
         
         # Process wins
-        wins_info = torch.tensor([self.leader.forehand_wins, self.leader.backhand_wins])
+        wins_info = torch.tensor([self.leader.forehand_wins / 12, self.leader.backhand_wins / 12, self.dealer.forehand_wins / 12, self.dealer.backhand_wins / 12])
         state_tensors.append(wins_info)
 
         # Trump suit
         trump_vector = torch.zeros(4)
         suit_mapping = {"C": 0, "D": 1, "H": 2, "S": 3}
         if self.trump_suit in suit_mapping:
-            trump_vector [suit_mapping[card.suit]] = 1
+            trump_vector [suit_mapping[self.trump_suit]] = 1
         state_tensors.append(trump_vector)
 
         # Flatten and concatenate all tensors to form the final state tensor

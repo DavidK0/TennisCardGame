@@ -1,7 +1,6 @@
 # This script handles tricks in trick taking games
 
-from Deck import Deck
-from Deck import Card
+from .Deck import Deck
 
 # This class represents one trick in trick taking cards games
 class Trick():
@@ -58,7 +57,7 @@ class Trick():
     # Returns the first card in the deck that would win this trick
     # Returns None if no such card can be found
     def first_winning_card(self, deck):
-        for card in cards:
+        for card in self.cards:
             if self.would_win(card):
                 return card
         return None
@@ -66,7 +65,7 @@ class Trick():
     # Returns the first card in the deck that would lose this trick
     # Returns None if no such card can be found
     def first_lossing_card(self, deck):
-        for card in cards:
+        for card in self.cards:
             if not self.would_win(card):
                 return card
         return None
