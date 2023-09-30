@@ -1,25 +1,30 @@
-import sys
+import sys, argparse
 from TennisEnv import TennisEnv
 from TennisQNet import TennisLeaderQNetwork
 from TennisQNet import TennisDealerQNetwork
 from GeneralDQN import DQN
 
+parser = argparse.ArgumentParser()
+parser.add_argument("--leader", default=None, help="The leader model (.pt) (optional)")
+parser.add_argument("--dealer", default=None, help="The dealer model (.pt) (optional)")
+args = parser.parse_args()
+
 # Leader
 leader = DQN(TennisLeaderQNetwork)
-if len(sys.argv) > 1:
-    leader.load_model(sys.argv[1])
+if args.leader:
+    leader.load_model(args.leader)
     print("Loading leader model")
 
 # Dealer
 dealer = DQN(TennisDealerQNetwork)
-if len(sys.argv) > 2:
-    dealer.load_model(sys.argv[2])
+if args.dealer:
+    dealer.load_model(args.dealer)
     print("Loading dealer model")
 
 # Environment
 environment = TennisEnv(leader, dealer, rewarded_player="leader")
 
-num_games = 5000
+num_games = 1500
 
 total_reward = 0  # Initialize the total reward to zero
 
@@ -64,5 +69,5 @@ average_reward = total_reward / num_games
 leader_win_rate = leader_wins / num_games
 dealer_win_rate = dealer_wins / num_games
 tie_rate = games_tied / num_games
-print(f"Average error difference over {num_games} games: {12*average_reward:.3f} (positive is good)")
+print(f"Average error difference over {num_games} games: {12*average_reward:.3f} (positive is good for leader)")
 print(f"Leader win/dealer win/tie rate: {leader_win_rate:.1%}/{dealer_win_rate:.1%}/{tie_rate:.1%}")

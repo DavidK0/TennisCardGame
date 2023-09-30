@@ -28,6 +28,7 @@ class DQN():
         self.GRAD_CLIP_MAX = 10
         self.TAU = 0.005  # The factor for soft-updating the target network weights
 
+        self.eps_threshold = self.EPS_START
 
         # Initialize the policy and target DQN models
         self.policy_net = qNetwork().to(device)
@@ -58,15 +59,14 @@ class DQN():
             else:
                 avg_reward, avg_loss = 0, 0
 
-            print(f"Training, avg reward: {avg_reward:.2f}, avg loss: {avg_loss:.2f}, step: {len(self.running_rewards)}/{self.running_maxlen}", end="\r")
+            print(f"Training, Avg reward: {avg_reward:.3f}, Avg loss: {avg_loss:.3f}, Game: {len(self.running_rewards)}/{self.running_maxlen}, Eps threshold: {self.eps_threshold:.3%}", end="\r")
             if len(self.running_rewards) >= self.running_maxlen:
                 self.running_rewards = []
                 self.running_losses = []
                 
                 current_datetime = datetime.datetime.now()
                 formatted_datetime = current_datetime.strftime("%Y-%m-%d %H:%M:%S")
-                eps_threshold = self.EPS_END + (self.EPS_START - self.EPS_END) * math.exp(-1. * self.steps_done / self.EPS_DECAY)
-                display_str = f"{formatted_datetime}, Reward: {avg_reward:.2f}, Avg Loss: {avg_loss:.4f}, Step: {self.steps_done}, Epsilon threshold: {eps_threshold:.3f}"
+                display_str = f"{formatted_datetime}, Avg reward: {avg_reward:.3f}, Avg loss: {avg_loss:.4f}, Step: {self.steps_done}, Eps threshold: {self.eps_threshold:.3%}"
                 print(display_str.ljust(30))
 
                 filename_datetime = re.sub(r'[\/:*?"<>|]', '_', formatted_datetime)
@@ -171,13 +171,13 @@ class DQN():
         """
         sample = random.random()  # Randomly sample a value between 0 and 1
         # Calculate the current epsilon threshold based on the number of steps taken
-        eps_threshold = self.EPS_END + (self.EPS_START - self.EPS_END) * math.exp(-1. * self.steps_done / self.EPS_DECAY)
+        self.eps_threshold = self.EPS_END + (self.EPS_START - self.EPS_END) * math.exp(-1. * self.steps_done / self.EPS_DECAY)
         self.steps_done += 1
         
         legal_moves = environment.get_legal_moves() # Get the list of legal moves
         
         # If the sampled value is greater than the threshold, select the best action based on the Q-values.
-        if sample > eps_threshold:
+        if sample > self.eps_threshold:
             return self.choose_action(environment)
         else:
             # Select a random action from the set of legal moves
