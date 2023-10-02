@@ -2,12 +2,20 @@
 # You just need to make the environment and the Q-network
 
 # Standard Library Imports
-import torch, random, math, datetime, re
+import random, math, datetime, re
 from collections import namedtuple, deque
 from itertools import count
 
+import torch
+
 # Check if GPU is available and set the device accordingly
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+
+SEED = 0
+random.seed(SEED)
+torch.manual_seed(SEED)
+if torch.cuda.is_available():
+    torch.cuda.manual_seed_all(SEED)
 
 class DQN():
     # Define a named tuple 'Transition' to represent a single transition in our environment.
@@ -15,15 +23,13 @@ class DQN():
     Transition = namedtuple('Transition', ('state', 'action', 'next_state', 'reward'))
     
     def __init__(self, qNetwork):
-        #self.num_episodes = 10
-    
         # Define hyperparameters for the DQN training
         self.BATCH_SIZE = 128  # Size of the batch sampled from the replay memory
         self.GAMMA = 0.99  # Discount factor for future rewards
-        self.LR = 1e-4  # Learning rate for the optimizer
-        self.EPS_START = 0.9  # Starting value of epsilon for epsilon-greedy action selection
-        self.EPS_END = 0.05  # Minimum value of epsilon
-        self.EPS_DECAY = 1000000  # Decay rate for epsilon
+        self.LR = 1e-5  # Learning rate for the optimizer
+        self.EPS_START = 0.1  # Starting value of epsilon for epsilon-greedy action selection
+        self.EPS_END = 0.1  # Minimum value of epsilon
+        self.EPS_DECAY = 800000  # Decay rate for epsilon
         self.GRAD_CLIP_MIN = -10
         self.GRAD_CLIP_MAX = 10
         self.TAU = 0.005  # The factor for soft-updating the target network weights
@@ -41,10 +47,11 @@ class DQN():
         self.steps_done = 0  
         
         # Initialize the replay memory of transitions
-        self.memory = ReplayMemory(30000)
+        self.memory = ReplayMemory(100000)
         
-        self.running_maxlen = 1500
+        self.running_maxlen = 1000
         self.running_rewards = []
+        self.running_wins = []
         self.running_losses = []
 
     # Main training loop to train the Q-network using the Tennis environment
@@ -55,24 +62,28 @@ class DQN():
             # Display the training progress
             if len(self.running_rewards) > 0 and len(self.running_losses) > 0:
                 avg_reward = sum(self.running_rewards) / len(self.running_rewards)
+                avg_wins = sum(self.running_wins) / len(self.running_wins)
                 avg_loss = sum(self.running_losses) / len(self.running_losses)
             else:
-                avg_reward, avg_loss = 0, 0
+                avg_reward, avg_wins, avg_loss = 0, 0, 0
 
-            print(f"Training, Avg reward: {avg_reward:.3f}, Avg loss: {avg_loss:.3f}, Game: {len(self.running_rewards)}/{self.running_maxlen}, Eps threshold: {self.eps_threshold:.3%}", end="\r")
+            current_datetime = datetime.datetime.now()
+            formatted_datetime = current_datetime.strftime("%Y-%m-%d %H:%M:%S")
+            display_str = f"{formatted_datetime}, Avg reward: {custom_round(avg_reward, 3)}, Avg Wins: {custom_round(avg_wins, 3)}, Avg loss: {custom_round(avg_loss, 3)}, Step: {self.steps_done}, Eps threshold: {self.eps_threshold:.3%}"
+            display_str_plus_games = display_str + f", Game: {len(self.running_rewards)}/{self.running_maxlen}"
+            print(display_str_plus_games.ljust(150), end="\r")
             if len(self.running_rewards) >= self.running_maxlen:
                 self.running_rewards = []
+                self.running_wins = []
                 self.running_losses = []
                 
-                current_datetime = datetime.datetime.now()
-                formatted_datetime = current_datetime.strftime("%Y-%m-%d %H:%M:%S")
-                display_str = f"{formatted_datetime}, Avg reward: {avg_reward:.3f}, Avg loss: {avg_loss:.4f}, Step: {self.steps_done}, Eps threshold: {self.eps_threshold:.3%}"
-                print(display_str.ljust(30))
+                print(display_str.ljust(150))
 
-                filename_datetime = re.sub(r'[\/:*?"<>|]', '_', formatted_datetime)
 
                 # Save the latest model
-                self.save_model(f"outputs/{filename_datetime}_{avg_reward:.2f}_{avg_loss:.2f}.pth")
+                #filename_datetime = re.sub(r'[\/:*?"<>| ]', '_', formatted_datetime)
+                #filename_datetime = re.sub(r'[\/:*?"<>| ]', '_', formatted_datetime)
+                #self.save_model(f"outputs/{filename_datetime}_{avg_reward:.2f}_{avg_loss:.2f}.pth")
 
             
             # Reset the environment and initialize variables
@@ -111,6 +122,10 @@ class DQN():
                     break
 
             self.running_rewards.append(reward)
+            if environment.winner == "dealer":
+                self.running_wins.append(1)
+            else:
+                self.running_wins.append(0)
         
     def optimize_model(self):
         """
@@ -201,7 +216,7 @@ class DQN():
         try:
             state_dict = torch.load(path, map_location=device)
             self.policy_net.load_state_dict(state_dict)
-            self.policy_net.eval()
+            #self.target_net.load_state_dict(state_dict)
         except Exception as e:
             print(f"Error loading model from {path}: {e}")
 
@@ -222,3 +237,69 @@ class ReplayMemory(object):
         return random.sample(self.memory, batch_size)
     def __len__(self): # Return the number of stored transitions in the memory.
         return len(self.memory)
+
+def chi_squared_test(old_win, old_lose, old_draw, new_win, new_lose, new_draw):
+    # Row and Column Totals
+    row1_total = old_win + old_lose + old_draw
+    row2_total = new_win + new_lose + new_draw
+    col1_total = old_win + new_win
+    col2_total = old_lose + new_lose
+    col3_total = old_draw + new_draw
+    grand_total = row1_total + row2_total
+    
+    # Expected Frequencies
+    exp_old_win = (row1_total * col1_total) / grand_total
+    exp_old_lose = (row1_total * col2_total) / grand_total
+    exp_old_draw = (row1_total * col3_total) / grand_total
+    
+    exp_new_win = (row2_total * col1_total) / grand_total
+    exp_new_lose = (row2_total * col2_total) / grand_total
+    exp_new_draw = (row2_total * col3_total) / grand_total
+    
+    # Chi-Squared Value
+    chi_squared = ((old_win - exp_old_win)**2 / exp_old_win) + \
+                  ((old_lose - exp_old_lose)**2 / exp_old_lose) + \
+                  ((old_draw - exp_old_draw)**2 / exp_old_draw) + \
+                  ((new_win - exp_new_win)**2 / exp_new_win) + \
+                  ((new_lose - exp_new_lose)**2 / exp_new_lose) + \
+                  ((new_draw - exp_new_draw)**2 / exp_new_draw)
+    
+    # Degrees of Freedom
+    dof = (2 - 1) * (3 - 1)
+    
+    # Critical Value (alpha=0.05)
+    critical_value = chi2.ppf(0.95, dof)
+    
+    # Test Conclusion
+    if chi_squared > critical_value:
+        return f"The change in win rates is statistically significant. Chi-Squared: {chi_squared}, Critical Value: {critical_value}"
+    else:
+        return f"The change in win rates is not statistically significant. Chi-Squared: {chi_squared}, Critical Value: {critical_value}"
+
+def custom_round(number, digits=2):
+    if number == 0:
+        return "0.0"
+
+    abs_num = abs(number)
+    exponent = 0
+
+    if abs_num >= 1:
+        while abs_num >= 10:
+            abs_num /= 10
+            exponent += 1
+    else:
+        while abs_num < 1:
+            abs_num *= 10
+            exponent -= 1
+
+    if exponent >= 0:
+        if exponent >= digits:
+            rounded_num = round(number / (10 ** exponent), digits - 1)
+            return f"{rounded_num:.{digits - 1}e}"
+        else:
+            rounded_num = round(number, digits - 1 - exponent)
+            return f"{rounded_num}"
+    else:
+        total_digits = digits - exponent - 1
+        rounded_num = round(number, total_digits)
+        return f"{rounded_num:.{total_digits}f}"

@@ -216,39 +216,65 @@ class TennisEnv:
                 # Check if the game is over
                 if len(self.leader.forehand) == 0:
                     self.done = True
-                    if self.rewarded_player == "leader":
-                        if self.reward > 0:
-                            self.winner = "leader"
-                        elif self.reward < 0:
-                            self.winner = "dealer"
-                        else:
-                            self.winner = "draw"
-                    else:
-                        if self.reward > 0:
-                            self.winner = "dealer"
-                        elif self.reward < 0:
-                            self.winner = "leader"
-                        else:
-                            self.winner = "draw"
-        
-        if self.dealer.forehand_bid["card"] != None:
+
+
+
+
+        # New reward
+        if not self.done:
+            self.reward = 0
+        else:
             # leader score
             leader_forehand_bid_difference = abs(self.leader.forehand_bid["value"] - self.leader.forehand_wins)
             leader_backhand_bid_difference = abs(self.leader.backhand_bid["value"] - self.leader.backhand_wins)
             leader_bid_difference = leader_forehand_bid_difference + leader_backhand_bid_difference
-            
+        
             # dealer score
             dealer_forehand_bid_difference = abs(self.dealer.forehand_bid["value"] - self.dealer.forehand_wins)
             dealer_backhand_bid_difference = abs(self.dealer.backhand_bid["value"] - self.dealer.backhand_wins)
             dealer_bid_difference = dealer_forehand_bid_difference + dealer_backhand_bid_difference
-            
+
             if self.rewarded_player == "leader":
                 self.reward = dealer_bid_difference-leader_bid_difference
             else:
                 self.reward = leader_bid_difference-dealer_bid_difference
-            self.reward /= 24 # normalize the reward
-        else:
-            self.reward = -24
+            self.reward /= 24
+
+            if self.rewarded_player == "leader":
+                if self.reward > 0:
+                    self.winner = "leader"
+                elif self.reward < 0:
+                    self.winner = "dealer"
+                else:
+                    self.winner = "draw"
+            else:
+                if self.reward > 0:
+                    self.winner = "dealer"
+                elif self.reward < 0:
+                    self.winner = "leader"
+                else:
+                    self.winner = "draw"
+            
+
+        # Old reward
+        #if self.dealer.forehand_bid["card"] != None:
+        #    # leader score
+        #    leader_forehand_bid_difference = abs(self.leader.forehand_bid["value"] - self.leader.forehand_wins)
+        #    leader_backhand_bid_difference = abs(self.leader.backhand_bid["value"] - self.leader.backhand_wins)
+        #    leader_bid_difference = leader_forehand_bid_difference + leader_backhand_bid_difference
+        #    
+        #    # dealer score
+        #    dealer_forehand_bid_difference = abs(self.dealer.forehand_bid["value"] - self.dealer.forehand_wins)
+        #    dealer_backhand_bid_difference = abs(self.dealer.backhand_bid["value"] - self.dealer.backhand_wins)
+        #    dealer_bid_difference = dealer_forehand_bid_difference + dealer_backhand_bid_difference
+        #    
+        #    if self.rewarded_player == "leader":
+        #        self.reward = dealer_bid_difference-leader_bid_difference
+        #    else:
+        #        self.reward = leader_bid_difference-dealer_bid_difference
+        #    self.reward /= 24 # normalize the reward
+        #else:
+        #    self.reward = -24
         
         return self.get_current_state(), self.reward, self.done, {}
     
