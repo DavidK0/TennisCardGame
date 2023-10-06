@@ -56,6 +56,12 @@ class Deck:
     
     def __getitem__(self, key):
         return self.cards[key]
+
+    def __add__(self, other):
+        new_deck = Deck()
+        new_deck.add(self)
+        new_deck.add(other)
+        return new_deck
     
     # puts 52 cards in the deck and shuffles it
     def reset(self):
@@ -169,3 +175,4 @@ class Deck:
        for card in self.cards:
            new_deck.add(Card(card.rank, card.suit))
        return new_deck
+

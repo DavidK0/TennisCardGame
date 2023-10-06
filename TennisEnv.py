@@ -9,7 +9,7 @@ import torch
 import numpy
 
 # Local imports
-from card_game_utils.Deck import Deck
+from card_game_utils.Deck import Deck, Card
 from card_game_utils.TrickTaking import Trick
 
 class TennisEnv:
@@ -46,7 +46,7 @@ class TennisEnv:
         self.rewarded_player = rewarded_player
         
         # Initialize game attributes
-        self.trump_suit = random.choice(['C', 'S', 'H', 'D', None])
+        self.trump_suit = random.choice(['S', None])
         self.done = False
         
         # Initialize the deck and the current trick
@@ -60,6 +60,9 @@ class TennisEnv:
 
         self.leader_q_network = leader
         self.dealer_q_network = dealer
+
+    def set_seed(self, seed=None):
+        random.seed(seed)
 
     def reset(self):
         """
@@ -127,8 +130,17 @@ class TennisEnv:
                 - dict: Additional information about the step (e.g., reason for termination).
         """
         
+
         # Get the card corresponding to the action
         played_card = self.action_space[action]
+
+        # Check if the played card is a legal move
+        assert(played_card in self.get_legal_moves())
+        
+        # Apply revsere mapping
+        inverse_suit_mapping = {v: k for k, v in self.get_suit_mapping().items()}
+        played_card = Card(played_card.rank, inverse_suit_mapping[played_card.suit])
+
         self.game_record.append(played_card)
         
         # Sort all the cards in the players' hands
@@ -136,9 +148,6 @@ class TennisEnv:
         self.dealer.backhand.sort_by_rank()
         self.leader.forehand.sort_by_rank()
         self.dealer.forehand.sort_by_rank()
-        
-        # Check if the played card is a legal move
-        assert(played_card in self.get_legal_moves())
         
         if self.leader.backhand_bid["card"] == None: # Leader forehand bid
             self.leader.backhand_bid["card"] = self.leader.backhand.play(played_card)
@@ -254,27 +263,6 @@ class TennisEnv:
                     self.winner = "leader"
                 else:
                     self.winner = "draw"
-            
-
-        # Old reward
-        #if self.dealer.forehand_bid["card"] != None:
-        #    # leader score
-        #    leader_forehand_bid_difference = abs(self.leader.forehand_bid["value"] - self.leader.forehand_wins)
-        #    leader_backhand_bid_difference = abs(self.leader.backhand_bid["value"] - self.leader.backhand_wins)
-        #    leader_bid_difference = leader_forehand_bid_difference + leader_backhand_bid_difference
-        #    
-        #    # dealer score
-        #    dealer_forehand_bid_difference = abs(self.dealer.forehand_bid["value"] - self.dealer.forehand_wins)
-        #    dealer_backhand_bid_difference = abs(self.dealer.backhand_bid["value"] - self.dealer.backhand_wins)
-        #    dealer_bid_difference = dealer_forehand_bid_difference + dealer_backhand_bid_difference
-        #    
-        #    if self.rewarded_player == "leader":
-        #        self.reward = dealer_bid_difference-leader_bid_difference
-        #    else:
-        #        self.reward = leader_bid_difference-dealer_bid_difference
-        #    self.reward /= 24 # normalize the reward
-        #else:
-        #    self.reward = -24
         
         return self.get_current_state(), self.reward, self.done, {}
     
@@ -333,15 +321,41 @@ class TennisEnv:
         # If you use other random number generators, set their seeds here too
         return [seed_value]
 
-    
+    def get_suit_mapping(self):
+        ranks = ['2', '3', '4', '5', '6', '7', '8', '9', '10', 'J', 'Q', 'K', 'A']
+        suits = ['S', 'D', 'H', 'C']
+        unmapped_suits = ['S', 'D', 'H', 'C']
+        suit_mapping = {}
+        if self.trump_suit == "S":
+            suit_mapping["S"] = unmapped_suits.pop(0)
+        
+        hands = self.leader.forehand + self.leader.backhand
+
+        # create mapping based on the cards in the rewarded players hands
+        for rank in ranks:
+            for suit in suits:
+                if suit in suit_mapping:
+                    continue
+                if Card(rank, suit) in hands:
+                    suit_mapping[suit] = unmapped_suits.pop(0)
+
+        # if the map is not complete, finish it randomly
+        for suit in suits:
+            if suit not in suit_mapping:
+                suit_mapping[suit] = unmapped_suits.pop(0)
+
+        return suit_mapping
+
+
     def get_current_state(self):  
+        suit_mapping = self.get_suit_mapping()
+
         def get_card_tensor(card):
             if not card:
                 return torch.zeros(4)  
             suit_vector = torch.zeros(4)
-            suit_mapping = {"C": 0, "D": 1, "H": 2, "S": 3}
-            if card.suit in suit_mapping:
-                suit_vector[suit_mapping[card.suit]] = card.numeric_rank() / 14
+            suit_mapping2 = {"C": 0, "D": 1, "H": 2, "S": 3}
+            suit_vector[suit_mapping2[suit_mapping[card.suit]]] = card.numeric_rank() / 14
             
             return suit_vector
 
@@ -382,10 +396,9 @@ class TennisEnv:
         state_tensors.append(wins_info)
 
         # Trump suit
-        trump_vector = torch.zeros(4)
-        suit_mapping = {"C": 0, "D": 1, "H": 2, "S": 3}
-        if self.trump_suit in suit_mapping:
-            trump_vector [suit_mapping[self.trump_suit]] = 1
+        trump_vector = torch.zeros(1)
+        if self.trump_suit == 'S':
+            trump_vector [0] = 1
         state_tensors.append(trump_vector)
 
         # Flatten and concatenate all tensors to form the final state tensor
@@ -405,30 +418,40 @@ class TennisEnv:
         """
         # Check if the leader has made their forehand bid
         if self.leader.backhand_bid["card"] == None:
-            return self.leader.backhand
+            legal_moves = self.leader.backhand
         # Check if the dealer has made their forehand bid
         elif self.dealer.backhand_bid["card"] == None:
-            return self.dealer.backhand
+            legal_moves = self.dealer.backhand
         # Check if the leader has made their backhand bid
         elif self.leader.forehand_bid["card"] == None:
-            return self.leader.forehand
+            legal_moves = self.leader.forehand
         # Check if the dealer has made their backhand bid
         elif self.dealer.forehand_bid["card"] == None:
-            return self.dealer.forehand
+            legal_moves = self.dealer.forehand
         else:
             # Determine legal moves based on the number of cards played in the current trick
             if len(self.current_trick) == 0:
-                return self.current_trick.get_legal_moves(self.leader.forehand)
+                legal_moves = self.current_trick.get_legal_moves(self.leader.forehand)
             elif len(self.current_trick) == 1:
-                return self.current_trick.get_legal_moves(self.dealer.forehand)
+                legal_moves = self.current_trick.get_legal_moves(self.dealer.forehand)
             elif len(self.current_trick) == 2:
-                return self.current_trick.get_legal_moves(self.leader.backhand)
+                legal_moves = self.current_trick.get_legal_moves(self.leader.backhand)
             elif len(self.current_trick) == 3:
-                return self.current_trick.get_legal_moves(self.dealer.backhand)
+                legal_moves = self.current_trick.get_legal_moves(self.dealer.backhand)
+
+        # apply mapping
+        mapped_moves = Deck()
+        suit_mapping = self.get_suit_mapping()
+        for card in legal_moves:
+            mapped_moves.add(Card(card.rank, suit_mapping[card.suit]))
+            
+        return mapped_moves
+        
+        return legal_moves
     
     # Plays a random moe
-    def random_step(self):
-        return self.step_helper(self.action_space.index(random.choice(self.get_legal_moves())))
+    #def random_step(self):
+    #    return self.step_helper(self.action_space.index(random.choice(self.get_legal_moves())))
     
 
 # This class is the base class for Tennis players.

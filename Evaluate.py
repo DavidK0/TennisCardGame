@@ -24,7 +24,9 @@ if args.dealer:
 # Environment
 environment = TennisEnv(leader, dealer, rewarded_player="leader")
 
-num_games = 1500
+num_games = 200
+
+verbose = False
 
 total_reward = 0  # Initialize the total reward to zero
 
@@ -32,7 +34,7 @@ total_reward = 0  # Initialize the total reward to zero
 leader_wins = 0
 dealer_wins = 0
 games_tied = 0
-
+environment.set_seed()
 # Play many games
 for i in range(num_games):
     # Print the progress of the current game
@@ -40,17 +42,23 @@ for i in range(num_games):
         
     # Reset the environment for a new game
     environment.reset()
+    if verbose:
+        environment.render()
 
     while True:
         # Leader
         leader_action = leader.choose_action(environment)
         environment.step_helper(leader_action)
+        if verbose:
+            environment.render()
         if environment.done:
             break
 
         # Dealer
         dealer_action = dealer.choose_action(environment)
         environment.step_helper(dealer_action)
+        if verbose:
+            environment.render()
         if environment.done:
             break
         
@@ -69,5 +77,5 @@ average_reward = total_reward / num_games
 leader_win_rate = leader_wins / num_games
 dealer_win_rate = dealer_wins / num_games
 tie_rate = games_tied / num_games
-print(f"Average error difference over {num_games} games: {12*average_reward:.3f} (positive is good for leader)")
+print(f"Average error difference over {num_games} games: {24*average_reward:.3f} (positive is good for leader)")
 print(f"Leader win/dealer win/tie rate: {leader_win_rate:.1%}/{dealer_win_rate:.1%}/{tie_rate:.1%}")

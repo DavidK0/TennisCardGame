@@ -1,16 +1,19 @@
-# This script allows one to train DQN models.
+# This script allows you to train DQN models.
 # You just need to make the environment and the Q-network
 
 # Standard Library Imports
-import random, math, datetime, re
+import random, math, datetime, os
 from collections import namedtuple, deque
 from itertools import count
 
+# Thir- Party Library Imports
 import torch
+from torch.utils.tensorboard import SummaryWriter
 
 # Check if GPU is available and set the device accordingly
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
+# random seed
 SEED = 0
 random.seed(SEED)
 torch.manual_seed(SEED)
@@ -22,69 +25,68 @@ class DQN():
     # It essentially maps (state, action) pairs to their (next_state, reward) result.
     Transition = namedtuple('Transition', ('state', 'action', 'next_state', 'reward'))
     
-    def __init__(self, qNetwork):
-        # Define hyperparameters for the DQN training
-        self.BATCH_SIZE = 128  # Size of the batch sampled from the replay memory
-        self.GAMMA = 0.99  # Discount factor for future rewards
-        self.LR = 1e-5  # Learning rate for the optimizer
-        self.EPS_START = 0.1  # Starting value of epsilon for epsilon-greedy action selection
-        self.EPS_END = 0.1  # Minimum value of epsilon
-        self.EPS_DECAY = 800000  # Decay rate for epsilon
+    def __init__(self, qNetwork, hyperparameters):
+        # Hyperparameters
+        self.BATCH_SIZE = 200
+        self.GAMMA = 0.99 # Discount for unknown future rewards
+        self.LR = hyperparameters["LR"]
+        self.EPS_START = 0.9 # The chance to make a random move
+        self.EPS_END = 0.05
+        self.EPS_DECAY = hyperparameters["EPS_DECAY"]
         self.GRAD_CLIP_MIN = -10
         self.GRAD_CLIP_MAX = 10
-        self.TAU = 0.005  # The factor for soft-updating the target network weights
+        self.TAU = 0.005 # The rate to update the target net
+        self.MEMORY_LENGTH = 100000 # Maximim transitions to be remembered
 
+        # Model settings
+        self.TRAINEE = "dealer"
+        self.steps_done = 0  
         self.eps_threshold = self.EPS_START
 
-        # Initialize the policy and target DQN models
+        # Initialize DQN models
         self.policy_net = qNetwork().to(device)
         self.target_net = qNetwork().to(device)
-        self.target_net.load_state_dict(self.policy_net.state_dict())  # Initialize the target network with the policy network's weights
+        self.target_net.load_state_dict(self.policy_net.state_dict())
+        
+        num_parameters = sum(p.numel() for p in self.policy_net.parameters() if p.requires_grad)
+        print(f"Created a {qNetwork.__name__} model with {num_parameters} parameters")
 
-        # Define the optimizer for training the policy network
+        # Optimization and Memory
         self.optimizer = torch.optim.AdamW(self.policy_net.parameters(), lr=self.LR, amsgrad=True)
-        
-        self.steps_done = 0  
-        
-        # Initialize the replay memory of transitions
-        self.memory = ReplayMemory(100000)
-        
-        self.running_maxlen = 1000
-        self.running_rewards = []
-        self.running_wins = []
-        self.running_losses = []
+        self.memory = ReplayMemory(self.MEMORY_LENGTH)
+
+        # Logging
+        log_dir = "logs"
+        current_time = datetime.datetime.now().strftime(f"log_{self.LR}_{self.EPS_DECAY}")
+        log_dir = os.path.join(log_dir, current_time)
+        self.summary_writer = SummaryWriter(log_dir=log_dir)
+
+        # Validation
+        self.running_rewards = RunningAverage(max_length=400)
+        self.running_wins = RunningAverage(max_length=400)
+        self.running_losses = RunningAverage(max_length=400)
+        self.best_validation_score = float('-inf')
+        self.VALIDATION_GAMES = 400
+        self.VALIDATION_FREQUENCY = 1000
+        self.checkpoint_save_name = None
+        self.OUTPUT_PATH = "outputs"
+        self.LJUST_LENGTH = 150
+
+        # Early stopping
+        self.PATIENCE = 1.5e+6
+        self.counter = 0
+        self.best_score = None
+        self.stop = False
 
     # Main training loop to train the Q-network using the Tennis environment
-    def train(self, environment):
+    def train(self, environment, save_name, games=-1):
+        self.checkpoint_save_name = save_name
+
         # Iterate over each episode
         #for i_episode in range(num_episodes):
-        while True:
-            # Display the training progress
-            if len(self.running_rewards) > 0 and len(self.running_losses) > 0:
-                avg_reward = sum(self.running_rewards) / len(self.running_rewards)
-                avg_wins = sum(self.running_wins) / len(self.running_wins)
-                avg_loss = sum(self.running_losses) / len(self.running_losses)
-            else:
-                avg_reward, avg_wins, avg_loss = 0, 0, 0
-
-            current_datetime = datetime.datetime.now()
-            formatted_datetime = current_datetime.strftime("%Y-%m-%d %H:%M:%S")
-            display_str = f"{formatted_datetime}, Avg reward: {custom_round(avg_reward, 3)}, Avg Wins: {custom_round(avg_wins, 3)}, Avg loss: {custom_round(avg_loss, 3)}, Step: {self.steps_done}, Eps threshold: {self.eps_threshold:.3%}"
-            display_str_plus_games = display_str + f", Game: {len(self.running_rewards)}/{self.running_maxlen}"
-            print(display_str_plus_games.ljust(150), end="\r")
-            if len(self.running_rewards) >= self.running_maxlen:
-                self.running_rewards = []
-                self.running_wins = []
-                self.running_losses = []
-                
-                print(display_str.ljust(150))
-
-
-                # Save the latest model
-                #filename_datetime = re.sub(r'[\/:*?"<>| ]', '_', formatted_datetime)
-                #filename_datetime = re.sub(r'[\/:*?"<>| ]', '_', formatted_datetime)
-                #self.save_model(f"outputs/{filename_datetime}_{avg_reward:.2f}_{avg_loss:.2f}.pth")
-
+        game = 0
+        while game < games or games < 1:
+            game += 1
             
             # Reset the environment and initialize variables
             state = environment.reset()
@@ -122,12 +124,92 @@ class DQN():
                     break
 
             self.running_rewards.append(reward)
-            if environment.winner == "dealer":
+            if environment.winner == environment.rewarded_player:
                 self.running_wins.append(1)
             else:
                 self.running_wins.append(0)
+
+            # Display the training progress
+            progress_str = f"Training: {game % self.VALIDATION_FREQUENCY}/{self.VALIDATION_FREQUENCY}"
+            print(progress_str.ljust(self.LJUST_LENGTH), end="\r")
+
+            # Validation
+            if game % self.VALIDATION_FREQUENCY == 0:
+                val_wins, val_reward, val_loss = self.validate(environment)
+
+                current_datetime = datetime.datetime.now()
+                formatted_datetime = current_datetime.strftime("%Y-%m-%d %H:%M:%S")
+                wins_str = f"Avg Wins: {custom_round(val_wins, 3)}"
+                reward_str = f"Avg reward: {custom_round(val_reward, 3)}"
+                loss_str = f"Avg loss: {custom_round(val_loss, 3)}"
+                step_str = f"Step: {self.steps_done}"
+                eps_str = f"Eps threshold: {self.eps_threshold:.2%}"
+
+                display_str = f"{formatted_datetime}, {wins_str}, {reward_str}, {loss_str}, {step_str}, {eps_str}"
+                print(display_str.ljust(self.LJUST_LENGTH), end="")
+
+                if val_reward > self.best_validation_score:
+                    self.best_validation_score = val_reward
+                    save_name = f"{self.checkpoint_save_name}_{self.LR}_{self.EPS_DECAY}"
+                    self.save_model(os.path.join(self.OUTPUT_PATH, save_name))
+                    print(f"\nNew best model found, saving to {save_name}", end="")
+                print()
+                
+                # Early Stopping
+                if self.best_score is None:
+                    self.best_score = val_reward
+                elif val_reward > self.best_score:  # Maximize reward
+                    self.best_score = val_reward
+                    self.counter = 0
+                else:
+                    self.counter += 1
+                    if self.counter >= self.PATIENCE:
+                        print("Early stopping triggered at step {self.steps_done}, no improvements after {self.PATIENCE}")
+                        break
+
+    # runs a few games with epsilon set to zero (no random moves)
+    def validate(self, environment):
+        total_wins = 0
+        total_reward = 0
+        total_loss = 0
+        validation_steps = 0
+        for v in range(self.VALIDATION_GAMES):
+            print(f"Validating {v}/{self.VALIDATION_GAMES}".ljust(self.LJUST_LENGTH), end="\r")
+            # Reset the environment and initialize variables
+            environment.reset()
+
+            # Iterate over each step in the episode
+            for t in count():
+                # Select an action based on the current state
+                action = self.choose_action(environment)
+                
+                # Take the selected action in the environment
+                next_state, reward, done, exit_cond = environment.step(action.item())
+                
+                # Get loss
+                total_loss += self.optimize_model(optimize=False).item()
+                
+                
+                # If the episode is done, stop
+                if done:
+                    validation_steps += t
+                    total_reward += environment.reward
+                    break
+
+            # Track wins
+            if environment.winner == environment.rewarded_player:
+                total_wins += 1
         
-    def optimize_model(self):
+        avg_wins = total_wins / self.VALIDATION_GAMES
+        avg_reward = total_reward / self.VALIDATION_GAMES
+        avg_loss = total_loss / validation_steps
+        self.summary_writer.add_scalar("Val win rate", avg_wins, self.steps_done)
+        self.summary_writer.add_scalar("Val reward", avg_reward, self.steps_done)
+        self.summary_writer.add_scalar("Epsilon threshold", self.eps_threshold, self.steps_done)
+        self.summary_writer.add_scalar("Loss", avg_loss, self.steps_done)
+        return avg_wins, avg_reward, avg_loss
+        
+    def optimize_model(self, optimize=True):
         """
         Optimize the Q-network based on the stored experiences in the replay memory.
         
@@ -163,15 +245,19 @@ class DQN():
         # Compute the Huber loss between the current and expected Q-values
         loss = torch.nn.functional.smooth_l1_loss(state_action_values, expected_state_action_values.unsqueeze(1))
 
+
         # Add loss to running_losses and remove oldest if exceeds maxlen
         self.running_losses.append(loss.item())
 
         # Backpropagate the loss and optimize the Q-network
-        self.optimizer.zero_grad()
-        loss.backward()
-        for param in self.policy_net.parameters():
-            param.grad.data.clamp_(self.GRAD_CLIP_MIN, self.GRAD_CLIP_MAX)
-        self.optimizer.step()
+        if optimize:
+            self.optimizer.zero_grad()
+            loss.backward()
+            for param in self.policy_net.parameters():
+                param.grad.data.clamp_(self.GRAD_CLIP_MIN, self.GRAD_CLIP_MAX)
+            self.optimizer.step()
+
+        return loss
     
     def epsilon_greedy_policy(self, environment):
         """
@@ -211,21 +297,35 @@ class DQN():
                     q_values[0][i] = -float('inf')
             return q_values.max(1)[1].view(1, 1)
     
-    def load_model(self, path):
-        """Load a model from the given path."""
-        try:
-            state_dict = torch.load(path, map_location=device)
-            self.policy_net.load_state_dict(state_dict)
-            #self.target_net.load_state_dict(state_dict)
-        except Exception as e:
-            print(f"Error loading model from {path}: {e}")
+    def load_model(self, policy_path=None, target_path=None):
+        """Load a model from the given name."""
+        if not policy_path:
+            return
 
-    def save_model(self, path):
-        """Save the policy network to the given path."""
         try:
-            torch.save(self.policy_net.state_dict(), path)
+            policy_state_dict = torch.load(policy_path, map_location=device)
+            self.policy_net.load_state_dict(policy_state_dict)
+            print(f"Loaded policy network from {policy_path}")
         except Exception as e:
-            print(f"Error saving model to {path}: {e}")
+            print(f"Error loading model from {policy_path}: {e}")
+        
+        if target_path:
+            try:
+                target_state_dict = torch.load(target_path, map_location=device)
+                print(f"Loaded target network from {target_path}")
+                self.target_net.load_state_dict(target_state_dict )
+            except Exception as e:
+                print(f"Error loading model from {target_path}: {e}")
+        else:
+            self.target_net.load_state_dict(policy_state_dict)
+
+    def save_model(self, model_name):
+        """Save the policy network with the given name."""
+        try:
+            torch.save(self.policy_net.state_dict(), model_name + "_policy.pt")
+            torch.save(self.target_net.state_dict(), model_name + "_target.pt")
+        except Exception as e:
+            print(f"Error saving model to {model_name}: {e}")
 
 # A class to store and manage transitions in reinforcement learning.
 class ReplayMemory(object):
@@ -238,46 +338,8 @@ class ReplayMemory(object):
     def __len__(self): # Return the number of stored transitions in the memory.
         return len(self.memory)
 
-def chi_squared_test(old_win, old_lose, old_draw, new_win, new_lose, new_draw):
-    # Row and Column Totals
-    row1_total = old_win + old_lose + old_draw
-    row2_total = new_win + new_lose + new_draw
-    col1_total = old_win + new_win
-    col2_total = old_lose + new_lose
-    col3_total = old_draw + new_draw
-    grand_total = row1_total + row2_total
-    
-    # Expected Frequencies
-    exp_old_win = (row1_total * col1_total) / grand_total
-    exp_old_lose = (row1_total * col2_total) / grand_total
-    exp_old_draw = (row1_total * col3_total) / grand_total
-    
-    exp_new_win = (row2_total * col1_total) / grand_total
-    exp_new_lose = (row2_total * col2_total) / grand_total
-    exp_new_draw = (row2_total * col3_total) / grand_total
-    
-    # Chi-Squared Value
-    chi_squared = ((old_win - exp_old_win)**2 / exp_old_win) + \
-                  ((old_lose - exp_old_lose)**2 / exp_old_lose) + \
-                  ((old_draw - exp_old_draw)**2 / exp_old_draw) + \
-                  ((new_win - exp_new_win)**2 / exp_new_win) + \
-                  ((new_lose - exp_new_lose)**2 / exp_new_lose) + \
-                  ((new_draw - exp_new_draw)**2 / exp_new_draw)
-    
-    # Degrees of Freedom
-    dof = (2 - 1) * (3 - 1)
-    
-    # Critical Value (alpha=0.05)
-    critical_value = chi2.ppf(0.95, dof)
-    
-    # Test Conclusion
-    if chi_squared > critical_value:
-        return f"The change in win rates is statistically significant. Chi-Squared: {chi_squared}, Critical Value: {critical_value}"
-    else:
-        return f"The change in win rates is not statistically significant. Chi-Squared: {chi_squared}, Critical Value: {critical_value}"
-
 def custom_round(number, digits=2):
-    if number == 0:
+    if not number or number == 0:
         return "0.0"
 
     abs_num = abs(number)
@@ -303,3 +365,27 @@ def custom_round(number, digits=2):
         total_digits = digits - exponent - 1
         rounded_num = round(number, total_digits)
         return f"{rounded_num:.{total_digits}f}"
+
+# This class keeps track of a running average
+class RunningAverage:
+    def __init__(self, max_length):
+        self.values = []
+        self.max_length = max_length
+     
+    # add one or more items
+    def append(self, values):
+        # add new values
+        if isinstance(values, list):
+            self.values.extend(values)
+        else:
+            self.values.append(values)
+        
+        # remove old values
+        self.values = self.values[-self.max_length:]
+    
+    # get the current average
+    def get(self):
+        if not self.values or len(self.values) == 0:
+            return None
+            
+        return sum(self.values) / len(self.values)
